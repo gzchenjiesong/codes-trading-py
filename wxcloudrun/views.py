@@ -3,7 +3,7 @@
 """
 import time
 from functools import wraps
-from flask import request, redirect, make_response, jsonify
+from flask import request, redirect, make_response, jsonify, render_template
 import jwt
 import httpx
 
@@ -53,7 +53,7 @@ def login_required(f):
 
 @app.route('/')
 def index():
-    return "<h1>网格交易管理系统 API</h1><p>状态: 运行中</p>"
+    return render_template('index.html')
 
 
 # ── Auth ──
