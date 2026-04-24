@@ -4,7 +4,6 @@ fund_data.py — 金融数据获取服务
 """
 import time
 import re
-from typing import Optional
 import httpx
 
 # ── 用户关注的 ETF/LOF 列表（来源：pytools/format_current_price.py）──
@@ -50,7 +49,7 @@ _cache = {"ts": 0, "data": None}
 CACHE_TTL = 30  # 30 秒缓存
 
 
-def _parse_tencent_quote(raw: str, watchlist: dict) -> Optional[dict]:
+def _parse_tencent_quote(raw: str, watchlist: dict) -> dict | None:
     """
     解析腾讯财经实时行情单条数据。
     返回 dict 或 None。
