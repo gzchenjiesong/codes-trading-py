@@ -1,10 +1,13 @@
 import sqlite3
 import os
 from flask import Flask
+from werkzeug.middleware.proxy_fix import ProxyFix
 import config
 
 # 初始化 Flask 应用
 app = Flask(__name__, instance_relative_config=True)
+# 信任反向代理的 X-Forwarded-* 头（云托管场景）
+app.wsgi_app = ProxyFix(app.wsgi_app, x_proto=1, x_host=1)
 app.config['DEBUG'] = config.DEBUG
 
 
