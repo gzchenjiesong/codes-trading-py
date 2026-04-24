@@ -4,7 +4,7 @@
 import time
 from functools import wraps
 from flask import request, redirect, make_response, jsonify
-from jose import jwt
+import jwt
 import httpx
 
 from run import app
