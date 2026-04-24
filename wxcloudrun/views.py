@@ -13,6 +13,9 @@ from wxcloudrun import dao
 from wxcloudrun.services.grid import (
     StockInfo, BaseParams, GridStepParams, TradeRecord, run_grid_analysis
 )
+from wxcloudrun.services.fund_data import (
+    get_realtime_quotes, get_etf_kline, DEFAULT_WATCHLIST,
+)
 from wxcloudrun.response import make_succ_response, make_err_response
 
 
@@ -215,3 +218,26 @@ def delete_trade(stock_id, trade_id):
     get_current_user()  # 验证登录
     dao.delete_trade(trade_id)
     return make_succ_response({})
+
+
+# ── 行情总览 ──
+
+@app.route('/market')
+def market_page():
+    return render_template('market.html')
+
+
+@app.route('/api/market/quotes')
+def market_quotes():
+    """批量实时行情"""
+    quotes = get_realtime_quotes()
+    return make_succ_response(quotes)
+
+
+@app.route('/api/market/kline/<code>')
+def market_kline(code):
+    """K 线数据"""
+    market = request.args.get("market", code[:2] if len(code) >= 6 else "sh")
+    days = int(request.args.get("days", 120))
+    data = get_etf_kline(code, market=market, days=days)
+    return make_succ_response(data)

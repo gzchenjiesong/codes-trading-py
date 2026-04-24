@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+<title>行情总览 — 网格交易系统</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f5f5;color:#333;font-size:14px;-webkit-font-smoothing:antialiased}
+.navbar{background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.navbar h1{font-size:17px;font-weight:600}
+.navbar .nav-right{display:flex;gap:8px;align-items:center}
+.navbar .nav-link{color:rgba(255,255,255,.8);text-decoration:none;font-size:13px;background:rgba(255,255,255,.15);padding:4px 10px;border-radius:12px}
+.navbar .nav-link:hover{background:rgba(255,255,255,.25)}
+
+.container{max-width:960px;margin:0 auto;padding:12px}
+
+/* 顶部汇总栏 */
+.summary-bar{display:flex;gap:8px;margin-bottom:12px;overflow-x:auto;padding:2px 0}
+.summary-pill{flex-shrink:0;padding:6px 14px;border-radius:16px;font-size:12px;font-weight:500;background:#fff;box-shadow:0 1px 3px rgba(0,0,0,.06);white-space:nowrap;cursor:pointer;transition:all .15s}
+.summary-pill.active{background:#07c160;color:#fff;box-shadow:0 2px 8px rgba(7,193,96,.3)}
+.summary-pill .count{opacity:.7;margin-left:4px}
+
+/* 涨跌统计条 */
+.overview-stats{display:flex;gap:12px;margin-bottom:12px;padding:10px 14px;background:#fff;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.04);font-size:12px}
+.overview-stats .stat{display:flex;align-items:center;gap:4px}
+.overview-stats .dot{width:8px;height:8px;border-radius:50%}
+.overview-stats .dot.up{background:#e74c3c}
+.overview-stats .dot.flat{background:#999}
+.overview-stats .dot.down{background:#07c160}
+
+/* 分组标题 */
+.category-header{font-size:13px;font-weight:600;color:#666;padding:8px 4px 6px;display:flex;align-items:center;gap:6px}
+.category-header .line{flex:1;height:1px;background:#e0e0e0}
+
+/* ETF 卡片网格 — 移动端 2 列，桌面 3-4 列 */
+.etf-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:16px}
+@media(min-width:768px){.etf-grid{grid-template-columns:repeat(3,1fr)}}
+@media(min-width:1024px){.etf-grid{grid-template-columns:repeat(4,1fr)}}
+
+.etf-card{background:#fff;border-radius:10px;padding:12px;box-shadow:0 1px 3px rgba(0,0,0,.04);cursor:pointer;transition:transform .1s,box-shadow .15s;position:relative;overflow:hidden}
+.etf-card:active{transform:scale(.97)}
+.etf-card:hover{box-shadow:0 3px 12px rgba(0,0,0,.08)}
+.etf-card .card-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px}
+.etf-card .card-name{font-size:13px;font-weight:600;line-height:1.3;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.etf-card .card-code{font-size:10px;color:#999;margin-top:2px}
+.etf-card .card-badge{font-size:10px;padding:1px 6px;border-radius:3px;background:#f0f0f0;color:#888;flex-shrink:0;margin-left:4px}
+.etf-card .card-price{font-size:18px;font-weight:700;font-family:"SF Mono",Menlo,monospace;line-height:1.2}
+.etf-card .card-change{font-size:12px;font-weight:600;margin-top:4px;font-family:"SF Mono",Menlo,monospace}
+.etf-card .card-meta{font-size:10px;color:#999;margin-top:6px;display:flex;justify-content:space-between}
+/* 涨跌颜色 */
+.up .card-price,.up .card-change{color:#e74c3c}
+.down .card-price,.down .card-change{color:#07c160}
+.flat .card-price,.flat .card-change{color:#666}
+/* 涨跌背景条纹 */
+.etf-card.up{border-left:3px solid #e74c3c}
+.etf-card.down{border-left:3px solid #07c160}
+.etf-card.flat{border-left:3px solid #ddd}
+
+/* K 线弹窗 */
+.kline-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center;padding:16px}
+.kline-overlay.show{display:flex}
+.kline-panel{background:#fff;border-radius:16px;width:100%;max-width:500px;max-height:85vh;overflow-y:auto;padding:20px}
+.kline-panel h3{font-size:16px;font-weight:600;margin-bottom:4px}
+.kline-panel .kline-subtitle{font-size:12px;color:#999;margin-bottom:12px}
+.kline-panel canvas{width:100%!important;height:200px!important;margin-bottom:12px}
+.kline-close{background:#f5f5f5;border:none;padding:8px 24px;border-radius:8px;font-size:14px;cursor:pointer;width:100%}
+.kline-info{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin-bottom:12px}
+.kline-info .item{background:#f8f9fa;padding:8px 10px;border-radius:6px;font-size:12px}
+.kline-info .item .label{color:#999;font-size:11px}
+.kline-info .item .value{font-weight:600;font-family:"SF Mono",Menlo,monospace;font-size:14px;margin-top:2px}
+
+/* 底部导航 */
+.bottom-nav{display:flex;background:#fff;border-top:1px solid #eee;position:fixed;bottom:0;left:0;right:0;z-index:100}
+.bottom-nav a{flex:1;padding:8px 0;text-align:center;text-decoration:none;font-size:11px;color:#999}
+.bottom-nav a.active{color:#07c160}
+.bottom-nav a .nav-icon{font-size:20px;display:block}
+
+.pb-60{padding-bottom:60px}
+
+/* 刷新动画 */
+@keyframes spin{to{transform:rotate(360deg)}}
+.refreshing{animation:spin 1s linear infinite}
+.toast{position:fixed;bottom:80px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.75);color:#fff;padding:8px 20px;border-radius:20px;font-size:13px;z-index:1000;opacity:0;transition:opacity .3s;pointer-events:none}
+.toast.show{opacity:1}
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <h1>📈 行情总览</h1>
+  <div class="nav-right">
+    <button class="nav-link" id="refreshBtn" onclick="loadQuotes()">🔄</button>
+    <a class="nav-link" href="/">📊 网格</a>
+  </div>
+</div>
+
+<div class="container pb-60">
+  <div class="summary-bar" id="summaryBar"></div>
+  <div class="overview-stats" id="overviewStats"></div>
+  <div id="etfList"></div>
+</div>
+
+<!-- K线弹窗 -->
+<div class="kline-overlay" id="klineOverlay" onclick="if(event.target===this)closeKline()">
+  <div class="kline-panel">
+    <h3 id="klineTitle">-</h3>
+    <div class="kline-subtitle" id="klineSubtitle"></div>
+    <div class="kline-info" id="klineInfo"></div>
+    <canvas id="klineChart"></canvas>
+    <button class="kline-close" onclick="closeKline()">关闭</button>
+  </div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<div class="bottom-nav">
+  <a href="/"><span class="nav-icon">📋</span>标的</a>
+  <a href="/market" class="active"><span class="nav-icon">📈</span>行情</a>
+</div>
+
+<script>
+let allQuotes=[],activeFilter='全部';
+const categories=['全部','指数','行业','概念','大宗'];
+
+function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
+
+// ── 加载行情 ──
+async function loadQuotes(){
+  const btn=document.getElementById('refreshBtn');
+  btn.classList.add('refreshing');
+  try{
+    const r=await fetch('/api/market/quotes');
+    const d=await r.json();
+    if(d.code===0){
+      allQuotes=d.data;
+      renderSummary();
+      renderStats();
+      renderList();
+    }else{
+      toast('加载失败: '+d.errorMsg);
+    }
+  }catch(e){
+    toast('网络异常');
+  }
+  btn.classList.remove('refreshing');
+}
+
+// ── 顶部筛选 ──
+function renderSummary(){
+  let h='';
+  for(const cat of categories){
+    const count=cat==='全部'?allQuotes.length:allQuotes.filter(q=>q.category===cat).length;
+    h+=`<div class="summary-pill ${activeFilter===cat?'active':''}" onclick="setFilter('${cat}')">${cat}<span class="count">${count}</span></div>`;
+  }
+  document.getElementById('summaryBar').innerHTML=h;
+}
+
+function setFilter(cat){
+  activeFilter=cat;
+  renderSummary();
+  renderList();
+}
+
+// ── 涨跌统计 ──
+function renderStats(){
+  const filtered=activeFilter==='全部'?allQuotes:allQuotes.filter(q=>q.category===activeFilter);
+  const up=filtered.filter(q=>q.change_pct>0).length;
+  const down=filtered.filter(q=>q.change_pct<0).length;
+  const flat=filtered.filter(q=>q.change_pct===0).length;
+  document.getElementById('overviewStats').innerHTML=`
+    <div class="stat"><div class="dot up"></div>涨 ${up}</div>
+    <div class="stat"><div class="dot flat"></div>平 ${flat}</div>
+    <div class="stat"><div class="dot down"></div>跌 ${down}</div>
+  `;
+}
+
+// ── ETF 列表 ──
+function renderList(){
+  const filtered=activeFilter==='全部'?allQuotes:allQuotes.filter(q=>q.category===activeFilter);
+  // 按分类分组
+  const groups={};
+  for(const q of filtered){
+    if(!groups[q.category])groups[q.category]=[];
+    groups[q.category].push(q);
+  }
+  let h='';
+  for(const cat of ['指数','行业','概念','大宗']){
+    if(!groups[cat])continue;
+    h+=`<div class="category-header"><span>${cat}</span><div class="line"></div></div><div class="etf-grid">`;
+    for(const q of groups[cat]){
+      const cls=q.change_pct>0?'up':q.change_pct<0?'down':'flat';
+      const sign=q.change_pct>=0?'+':'';
+      const refPct=((q.current_price-q.ref_price)/q.ref_price*100).toFixed(1);
+      const refSign=refPct>=0?'+':'';
+      h+=`<div class="etf-card ${cls}" onclick="openKline('${q.code}','${q.name}','${q.market}')">
+        <div class="card-header">
+          <div><div class="card-name">${q.name}</div><div class="card-code">${q.code}</div></div>
+        </div>
+        <div class="card-price">${q.current_price.toFixed(3)}</div>
+        <div class="card-change">${sign}${q.change_pct.toFixed(2)}%</div>
+        <div class="card-meta">
+          <span>基准 ${refSign}${refPct}%</span>
+          <span>${q.amount>=1e8?(q.amount/1e8).toFixed(1)+'亿':q.amount>=1e4?(q.amount/1e4).toFixed(0)+'万':''}</span>
+        </div>
+      </div>`;
+    }
+    h+='</div>';
+  }
+  document.getElementById('etfList').innerHTML=h;
+}
+
+// ── K 线图 ──
+async function openKline(code,name,market){
+  const overlay=document.getElementById('klineOverlay');
+  document.getElementById('klineTitle').textContent=name;
+  document.getElementById('klineSubtitle').textContent=code;
+  document.getElementById('klineInfo').innerHTML='<div style="text-align:center;padding:20px;color:#999">加载中...</div>';
+  overlay.classList.add('show');
+
+  try{
+    const r=await fetch(`/api/market/kline/${code}?market=${market}&days=60`);
+    const d=await r.json();
+    if(d.code!==0){toast('K线加载失败');return}
+    const klines=d.data;
+    if(!klines.length){toast('暂无K线数据');return}
+
+    // 基本信息
+    const latest=klines[klines.length-1];
+    const first=klines[0];
+    const high60=Math.max(...klines.map(k=>k.high));
+    const low60=Math.min(...klines.map(k=>k.low));
+    const avgVol=klines.reduce((s,k)=>s+k.volume,0)/klines.length;
+    const pctFromFirst=((latest.close-first.open)/first.open*100).toFixed(2);
+    const pctIn60=((latest.close-low60)/(high60-low60)*100).toFixed(1);
+
+    document.getElementById('klineInfo').innerHTML=`
+      <div class="item"><div class="label">最新价</div><div class="value">${latest.close.toFixed(3)}</div></div>
+      <div class="item"><div class="label">60日涨跌</div><div class="value" style="color:${pctFromFirst>=0?'#e74c3c':'#07c160'}">${pctFromFirst>=0?'+':''}${pctFromFirst}%</div></div>
+      <div class="item"><div class="label">60日最高</div><div class="value">${high60.toFixed(3)}</div></div>
+      <div class="item"><div class="label">60日最低</div><div class="value">${low60.toFixed(3)}</div></div>
+      <div class="item"><div class="label">价格百分位</div><div class="value">${pctIn60}%</div></div>
+      <div class="item"><div class="label">日均成交</div><div class="value">${(avgVol/1e4).toFixed(0)}万手</div></div>
+    `;
+
+    drawKlineChart(klines);
+  }catch(e){
+    toast('网络异常');
+  }
+}
+
+function closeKline(){
+  document.getElementById('klineOverlay').classList.remove('show');
+}
+
+// ── Canvas K 线 ──
+function drawKlineChart(klines){
+  const canvas=document.getElementById('klineChart');
+  const ctx=canvas.getContext('2d');
+  const dpr=window.devicePixelRatio||1;
+  const rect=canvas.parentElement.getBoundingClientRect();
+  const w=rect.width-40;
+  const h=200;
+  canvas.width=w*dpr;
+  canvas.height=h*dpr;
+  canvas.style.width=w+'px';
+  canvas.style.height=h+'px';
+  ctx.scale(dpr,dpr);
+
+  const data=klines.slice(-40); // 最近 40 根
+  const highs=data.map(k=>k.high);
+  const lows=data.map(k=>k.low);
+  const maxP=Math.max(...highs);
+  const minP=Math.min(...lows);
+  const range=maxP-minP||0.01;
+  const pad=8;
+  const chartW=w-pad*2;
+  const chartH=h-pad*2;
+
+  const candleW=Math.max(2,chartW/data.length*0.6);
+  const gap=chartW/data.length;
+
+  // 背景
+  ctx.fillStyle='#fafafa';
+  ctx.fillRect(0,0,w,h);
+
+  // 价格网格线
+  ctx.strokeStyle='#eee';
+  ctx.lineWidth=0.5;
+  for(let i=0;i<=4;i++){
+    const y=pad+chartH/4*i;
+    ctx.beginPath();ctx.moveTo(pad,y);ctx.lineTo(w-pad,y);ctx.stroke();
+    ctx.fillStyle='#bbb';ctx.font='10px monospace';ctx.textAlign='right';
+    ctx.fillText((maxP-range/4*i).toFixed(3),w-pad,y-2);
+  }
+
+  // K线
+  for(let i=0;i<data.length;i++){
+    const k=data[i];
+    const x=pad+gap*i+gap/2;
+    const yO=pad+chartH*(1-(k.open-minP)/range);
+    const yC=pad+chartH*(1-(k.close-minP)/range);
+    const yH=pad+chartH*(1-(k.high-minP)/range);
+    const yL=pad+chartH*(1-(k.low-minP)/range);
+    const isUp=k.close>=k.open;
+
+    ctx.strokeStyle=isUp?'#e74c3c':'#07c160';
+    ctx.fillStyle=isUp?'#e74c3c':'#07c160';
+    ctx.lineWidth=1;
+
+    // 影线
+    ctx.beginPath();ctx.moveTo(x,yH);ctx.lineTo(x,yL);ctx.stroke();
+    // 实体
+    const top=Math.min(yO,yC);
+    const bodyH=Math.max(1,Math.abs(yO-yC));
+    if(isUp){
+      ctx.fillRect(x-candleW/2,top,candleW,bodyH);
+    }else{
+      ctx.fillRect(x-candleW/2,top,candleW,bodyH);
+    }
+  }
+
+  // 日期标签
+  ctx.fillStyle='#999';ctx.font='10px sans-serif';ctx.textAlign='center';
+  const step=Math.max(1,Math.floor(data.length/5));
+  for(let i=0;i<data.length;i+=step){
+    const x=pad+gap*i+gap/2;
+    ctx.fillText(data[i].date.slice(5),x,h-1);
+  }
+}
+
+// ── 自动刷新 ──
+let refreshTimer=null;
+function startAutoRefresh(){
+  if(refreshTimer)clearInterval(refreshTimer);
+  refreshTimer=setInterval(()=>{
+    if(!document.getElementById('klineOverlay').classList.contains('show')){
+      loadQuotes();
+    }
+  },30000); // 30 秒自动刷新
+}
+
+// ── 启动 ──
+loadQuotes();
+startAutoRefresh();
+</script>
+</body>
+</html>
