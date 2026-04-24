@@ -1,24 +1,88 @@
+import sqlite3
+import os
 from flask import Flask
-from flask_sqlalchemy import SQLAlchemy
-import pymysql
 import config
 
-# 因MySQLDB不支持Python3，使用pymysql扩展库代替MySQLDB库
-pymysql.install_as_MySQLdb()
-
-# 初始化web应用
+# 初始化 Flask 应用
 app = Flask(__name__, instance_relative_config=True)
 app.config['DEBUG'] = config.DEBUG
 
-# 设定数据库链接
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://{}:{}@{}/flask_demo'.format(config.username, config.password,
-                                                                             config.db_address)
 
-# 初始化DB操作对象
-db = SQLAlchemy(app)
+def get_conn():
+    """获取 SQLite 连接"""
+    os.makedirs(os.path.dirname(config.DB_PATH), exist_ok=True)
+    conn = sqlite3.connect(config.DB_PATH)
+    conn.row_factory = sqlite3.Row
+    conn.execute("PRAGMA journal_mode=WAL")
+    conn.execute("PRAGMA foreign_keys=ON")
+    return conn
+
+
+def init_db():
+    """初始化数据库表结构"""
+    conn = get_conn()
+    conn.executescript("""
+    CREATE TABLE IF NOT EXISTS users (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        openid TEXT UNIQUE NOT NULL,
+        nickname TEXT DEFAULT '',
+        avatar TEXT DEFAULT '',
+        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime'))
+    );
+
+    CREATE TABLE IF NOT EXISTS stocks (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        code TEXT NOT NULL,
+        name TEXT NOT NULL,
+        market TEXT DEFAULT 'sz',
+        status INTEGER DEFAULT 1,
+        current_price REAL DEFAULT 0,
+        mode TEXT DEFAULT 'm1',
+        base_cash REAL DEFAULT 10000,
+        one_grid_limit REAL DEFAULT 0.67,
+        max_slump_pct REAL DEFAULT 0.2,
+        trigger_add_point REAL DEFAULT 0.005,
+        trading_price_precision INTEGER DEFAULT 3,
+        min_batch_count INTEGER DEFAULT 100,
+        max_rise_pct REAL DEFAULT 0.07,
+        sgrid_step_pct REAL DEFAULT 0.05,
+        sgrid_retain_count INTEGER DEFAULT 0,
+        sgrid_add_pct REAL DEFAULT 0,
+        mgrid_step_pct REAL DEFAULT 0.05,
+        mgrid_retain_count INTEGER DEFAULT 0,
+        mgrid_add_pct REAL DEFAULT 0,
+        lgrid_step_pct REAL DEFAULT 0.05,
+        lgrid_retain_count INTEGER DEFAULT 0,
+        lgrid_add_pct REAL DEFAULT 0,
+        control TEXT DEFAULT 'ACTIVE',
+        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+        updated_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (user_id) REFERENCES users(id)
+    );
+
+    CREATE TABLE IF NOT EXISTS trades (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        stock_id INTEGER NOT NULL,
+        type TEXT NOT NULL,
+        date TEXT NOT NULL,
+        grid_label TEXT DEFAULT '',
+        price REAL NOT NULL,
+        count INTEGER NOT NULL,
+        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (stock_id) REFERENCES stocks(id)
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_stocks_user ON stocks(user_id);
+    CREATE INDEX IF NOT EXISTS idx_trades_stock ON trades(stock_id);
+    """)
+    conn.commit()
+    conn.close()
+    print("✅ Database initialized")
+
+
+# 启动时初始化数据库
+init_db()
 
 # 加载控制器
 from wxcloudrun import views
-
-# 加载配置
-app.config.from_object('config')
