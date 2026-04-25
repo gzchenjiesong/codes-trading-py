@@ -60,9 +60,10 @@ def _parse_jin10_items(data: list) -> list:
     return results
 
 
-def get_financial_news():
+def get_financial_news(days: int = 2):
     """
-    获取财经资讯（金十快讯 + 财联社电报）。
+    获取财经资讯（金十快讯 + 财联社电报 + Marketaux）。
+    days: 金十快讯历史数据回溯天数（不含今天），默认 2 天，解决凌晨跨天数据为空的问题。
     返回：[{id, title, content, date, source, category, important, url?}, ...]
     按时间倒序，不限数量。
     """
@@ -93,19 +94,20 @@ def get_financial_news():
     except Exception as e:
         print(f"jin10 today error: {e}")
 
-    # 昨日历史数据（解决跨天丢失）
-    try:
-        yesterday = datetime.now() - timedelta(days=1)
-        date_url = f"https://cdn-rili.jin10.com/web_data/{yesterday.year}/{yesterday.month:02d}/{yesterday.day:02d}.json"
-        resp = httpx.get(date_url, headers=headers, timeout=10)
-        data = json.loads(resp.text)
-        for item in _parse_jin10_items(data):
-            key = item["content"][:20]
-            if key not in seen_keys:
-                seen_keys.add(key)
-                news.append(item)
-    except Exception as e:
-        print(f"jin10 yesterday error: {e}")
+    # CDN 历史数据：回溯最近 days 天（解决凌晨跨天数据为空）
+    for offset in range(1, days + 1):
+        try:
+            d = datetime.now() - timedelta(days=offset)
+            date_url = f"https://cdn-rili.jin10.com/web_data/{d.year}/{d.month:02d}/{d.day:02d}.json"
+            resp = httpx.get(date_url, headers=headers, timeout=10)
+            data = json.loads(resp.text)
+            for item in _parse_jin10_items(data):
+                key = item["content"][:20]
+                if key not in seen_keys:
+                    seen_keys.add(key)
+                    news.append(item)
+        except Exception as e:
+            print(f"jin10 day-{offset} error: {e}")
 
     # 财联社电报
     try:
