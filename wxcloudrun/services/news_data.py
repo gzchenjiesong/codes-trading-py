@@ -116,6 +116,17 @@ def get_financial_news():
     except Exception as e:
         print(f"cls merge error: {e}")
 
+    # Marketaux 国际财经（3页 = 约9条）
+    try:
+        ma_items = get_marketaux_news(3)
+        for item in ma_items:
+            key = item.get("url", item["title"][:30])
+            if key not in seen_keys:
+                seen_keys.add(key)
+                news.append(item)
+    except Exception as e:
+        print(f"marketaux merge error: {e}")
+
     # 按时间倒序
     news.sort(key=lambda x: x.get("date", ""), reverse=True)
 
@@ -152,6 +163,50 @@ def _parse_cls_items(data: list) -> list:
             "important": is_important,
             "url": item.get("shareurl", ""),
         })
+    return results
+
+
+def get_marketaux_news(pages: int = 3) -> list:
+    """获取 Marketaux 国际财经资讯（免费 tier 每次 3 条，分页获取更多）"""
+    from config import MARKETAUX_TOKEN
+    results = []
+    for page in range(1, pages + 1):
+        try:
+            url = (
+                "https://api.marketaux.com/v1/news/all"
+                f"?countries=us,cn&language=zh,en&limit=3&page={page}"
+                f"&api_token={MARKETAUX_TOKEN}"
+            )
+            resp = httpx.get(url, timeout=10)
+            data = resp.json()
+            items = data.get("data", [])
+            if not items:
+                break
+            for item in items:
+                published = item.get("published_at", "")[:16].replace("T", " ")
+                # 提取关联股票
+                entities = item.get("entities", [])
+                symbols = [e["symbol"] for e in entities if e.get("symbol")]
+                # 情感评分
+                sentiments = [e.get("sentiment_score", 0) for e in entities if e.get("sentiment_score") is not None]
+                avg_sentiment = round(sum(sentiments) / len(sentiments), 2) if sentiments else 0
+                title = item.get("title", "")
+                desc = item.get("description", "")
+                results.append({
+                    "id": f"marketaux_{item.get('uuid', '')[:12]}",
+                    "title": title,
+                    "content": desc,
+                    "date": published,
+                    "source": item.get("source", "marketaux"),
+                    "category": "国际",
+                    "important": avg_sentiment > 0.3 or avg_sentiment < -0.3,
+                    "url": item.get("url", ""),
+                    "stock": ", ".join(symbols[:5]) if symbols else "",
+                    "sentiment": avg_sentiment,
+                })
+        except Exception as e:
+            print(f"marketaux page {page} error: {e}")
+            break
     return results
 
 

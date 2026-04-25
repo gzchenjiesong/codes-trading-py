@@ -34,6 +34,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
 .source-report{background:#e3f2fd;color:#1565c0}
 .source-cls{background:#f3e5f5;color:#7b1fa2}
 .source-other{background:#f5f5f5;color:#666}
+.source-intl{background:#e8f5e9;color:#2e7d32}
 
 .news-title{font-size:14px;font-weight:600;line-height:1.5;margin-bottom:4px}
 .news-summary{font-size:13px;line-height:1.6;color:#555}
@@ -74,6 +75,7 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
     <button class="filter-btn" onclick="filterNews('important')">⚡ 重要</button>
     <button class="filter-btn" onclick="filterNews('快讯')">快讯</button>
     <button class="filter-btn" onclick="filterNews('电报')">电报</button>
+    <button class="filter-btn" onclick="filterNews('国际')">国际</button>
   </div>
 
   <div id="news-list">
@@ -114,6 +116,7 @@ function getSourceClass(source, category) {
   if (source === '金十快讯') return 'source-jin10';
   if (category === '研报') return 'source-report';
   if (category === '电报') return 'source-cls';
+  if (category === '国际') return 'source-intl';
   return 'source-other';
 }
 

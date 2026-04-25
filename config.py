@@ -18,3 +18,6 @@ JWT_EXPIRE_DAYS = 30
 
 # 公网地址（微信 OAuth 回调用）
 PUBLIC_URL = os.environ.get("PUBLIC_URL", "http://localhost:80")
+
+# Marketaux API（国际财经资讯）
+MARKETAUX_TOKEN = os.environ.get("MARKETAUX_TOKEN", "k86KbixNMBt4LsEla6mEIUzHfOV5j4sPPQehjXy1")
