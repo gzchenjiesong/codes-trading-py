@@ -9,7 +9,9 @@ from datetime import datetime, timedelta
 import httpx
 
 _news_cache = {"ts": 0, "data": None}
-CACHE_TTL = 60  # 1 分钟缓存
+_marketaux_cache = {"ts": 0, "data": None}
+CACHE_TTL = 60  # 1 分钟缓存（金十+财联社）
+MARKETAUX_CACHE_TTL = 3600  # 1 小时缓存（Marketaux，配额有限）
 
 
 def _strip_html(text: str) -> str:
@@ -166,28 +168,42 @@ def _parse_cls_items(data: list) -> list:
     return results
 
 
-def get_marketaux_news(pages: int = 3) -> list:
-    """获取 Marketaux 国际财经资讯（免费 tier 每次 3 条，分页获取更多）"""
-    from config import MARKETAUX_TOKEN
+def _fetch_marketaux(lang: str, limit: int, after: str, token: str) -> list:
+    """单语言 Marketaux 请求（内部辅助）"""
+    url = (
+        "https://api.marketaux.com/v1/news/all"
+        f"?language={lang}&limit={limit}"
+        f"&published_after={after}"
+        f"&api_token={token}"
+    )
+    resp = httpx.get(url, timeout=10)
+    data = resp.json()
+    return data.get("data", [])
+
+
+def get_marketaux_news(per_lang: int = 3) -> list:
+    """获取 Marketaux 国际财经资讯（中英各取 N 条）
+    筛选：中文 + 英文，最近2天
+    缓存：1 小时（免费 tier 每日仅 100 次配额）
+    配额：2 次/小时 = 48 次/天
+    """
+    import config
+    # 1 小时独立缓存
+    now = time.time()
+    if _marketaux_cache["data"] and (now - _marketaux_cache["ts"]) < 3600:
+        return _marketaux_cache["data"]
+
+    two_days_ago = (datetime.now() - timedelta(days=2)).strftime("%Y-%m-%d")
     results = []
-    for page in range(1, pages + 1):
+
+    # 中英文分别请求（合在一起时 API 返回英文为主，中文被挤掉）
+    for lang in ("zh", "en"):
         try:
-            url = (
-                "https://api.marketaux.com/v1/news/all"
-                f"?countries=us,cn&language=zh,en&limit=3&page={page}"
-                f"&api_token={MARKETAUX_TOKEN}"
-            )
-            resp = httpx.get(url, timeout=10)
-            data = resp.json()
-            items = data.get("data", [])
-            if not items:
-                break
+            items = _fetch_marketaux(lang, per_lang, two_days_ago, config.MARKETAUX_TOKEN)
             for item in items:
                 published = item.get("published_at", "")[:16].replace("T", " ")
-                # 提取关联股票
                 entities = item.get("entities", [])
                 symbols = [e["symbol"] for e in entities if e.get("symbol")]
-                # 情感评分
                 sentiments = [e.get("sentiment_score", 0) for e in entities if e.get("sentiment_score") is not None]
                 avg_sentiment = round(sum(sentiments) / len(sentiments), 2) if sentiments else 0
                 title = item.get("title", "")
@@ -205,8 +221,10 @@ def get_marketaux_news(pages: int = 3) -> list:
                     "sentiment": avg_sentiment,
                 })
         except Exception as e:
-            print(f"marketaux page {page} error: {e}")
-            break
+            print(f"marketaux {lang} error: {e}")
+
+    _marketaux_cache["ts"] = now
+    _marketaux_cache["data"] = results
     return results
 
 
