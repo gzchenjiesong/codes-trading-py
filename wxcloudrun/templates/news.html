@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
+<title>财经资讯 - 网格交易系统</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f5f5;color:#333;font-size:14px}
+.navbar{background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+.navbar h1{font-size:17px;font-weight:600}
+.nav-links{display:flex;gap:12px;align-items:center}
+.nav-links a{color:rgba(255,255,255,.85);text-decoration:none;font-size:13px;padding:4px 8px;border-radius:4px}
+.nav-links a:hover,.nav-links a.active{background:rgba(255,255,255,.2);color:#fff}
+.container{max-width:960px;margin:0 auto;padding:12px}
+.section-title{font-size:15px;font-weight:600;margin:16px 0 10px;display:flex;align-items:center;gap:6px}
+.filter-bar{display:flex;gap:8px;margin-bottom:12px;flex-wrap:wrap}
+.filter-btn{padding:6px 14px;border:1px solid #ddd;border-radius:16px;background:#fff;font-size:13px;cursor:pointer;transition:all .2s}
+.filter-btn:hover,.filter-btn.active{background:#07c160;color:#fff;border-color:#07c160}
+.news-card{background:#fff;border-radius:10px;padding:14px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.05)}
+.news-card.important{border-left:3px solid #e74c3c}
+.news-meta{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.news-time{font-size:12px;color:#999}
+.news-source{font-size:11px;padding:2px 8px;border-radius:4px;font-weight:500}
+.source-jin10{background:#fff3e0;color:#e65100}
+.source-announce{background:#e3f2fd;color:#1565c0}
+.source-other{background:#f5f5f5;color:#666}
+.news-content{font-size:14px;line-height:1.6;color:#333}
+.news-company{font-size:12px;color:#07c160;margin-top:4px}
+.important-badge{display:inline-block;font-size:11px;background:#e74c3c;color:#fff;padding:1px 6px;border-radius:3px;margin-right:4px;font-weight:500}
+.loading{text-align:center;padding:40px;color:#999;font-size:14px}
+.empty{text-align:center;padding:60px 20px;color:#ccc;font-size:14px}
+</style>
+</head>
+<body>
+
+<div class="navbar">
+  <h1>📰 财经资讯</h1>
+  <div class="nav-links">
+    <a href="/">标的</a>
+    <a href="/market">行情</a>
+    <a href="/news" class="active">资讯</a>
+  </div>
+</div>
+
+<div class="container">
+  <div class="filter-bar">
+    <button class="filter-btn active" onclick="filterNews('all')">全部</button>
+    <button class="filter-btn" onclick="filterNews('important')">⚡ 重要</button>
+    <button class="filter-btn" onclick="filterNews('快讯')">快讯</button>
+    <button class="filter-btn" onclick="filterNews('公告')">公告</button>
+  </div>
+
+  <div id="news-list">
+    <div class="loading">加载中...</div>
+  </div>
+</div>
+
+<script>
+let allNews = [];
+
+function filterNews(type) {
+  document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
+  event.target.classList.add('active');
+  
+  let filtered = allNews;
+  if (type === 'important') {
+    filtered = allNews.filter(n => n.important);
+  } else if (type !== 'all') {
+    filtered = allNews.filter(n => n.category === type);
+  }
+  renderNews(filtered);
+}
+
+function renderNews(news) {
+  const el = document.getElementById('news-list');
+  if (!news || news.length === 0) {
+    el.innerHTML = '<div class="empty">暂无资讯</div>';
+    return;
+  }
+  el.innerHTML = news.map(item => {
+    const sourceClass = item.source === '金十快讯' ? 'source-jin10' : (item.category === '公告' ? 'source-announce' : 'source-other');
+    const importantBadge = item.important ? '<span class="important-badge">重要</span>' : '';
+    const company = item.company ? `<div class="news-company">📋 ${item.company}</div>` : '';
+    return `<div class="news-card ${item.important ? 'important' : ''}">
+      <div class="news-meta">
+        <span class="news-time">${item.date || ''}</span>
+        <span class="news-source ${sourceClass}">${item.source || ''}</span>
+      </div>
+      <div class="news-content">${importantBadge}${item.content || item.title || ''}</div>
+      ${company}
+    </div>`;
+  }).join('');
+}
+
+async function loadNews() {
+  try {
+    const resp = await fetch('/api/news');
+    const data = await resp.json();
+    if (data.code === 0) {
+      allNews = data.data || [];
+      renderNews(allNews);
+    } else {
+      document.getElementById('news-list').innerHTML = '<div class="empty">加载失败</div>';
+    }
+  } catch(e) {
+    document.getElementById('news-list').innerHTML = '<div class="empty">网络错误</div>';
+  }
+}
+
+loadNews();
+</script>
+</body>
+</html>

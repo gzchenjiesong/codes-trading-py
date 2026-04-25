@@ -16,6 +16,8 @@ from wxcloudrun.services.grid import (
 from wxcloudrun.services.fund_data import (
     get_realtime_quotes, get_etf_kline, DEFAULT_WATCHLIST,
 )
+from wxcloudrun.services.news_data import get_financial_news
+from wxcloudrun.services.market_data import get_market_indices
 from wxcloudrun.response import make_succ_response, make_err_response
 
 
@@ -218,6 +220,52 @@ def delete_trade(stock_id, trade_id):
     get_current_user()  # 验证登录
     dao.delete_trade(trade_id)
     return make_succ_response({})
+
+
+# ── 资讯 ──
+
+@app.route('/news')
+def news_page():
+    return render_template('news.html')
+
+
+@app.route('/api/news')
+def api_news():
+    """财经资讯列表（金十快讯 + 东方财富公告）"""
+    news = get_financial_news()
+    return make_succ_response(news)
+
+
+# ── 大盘指数 ──
+
+@app.route('/api/market/indices')
+def api_market_indices():
+    """大盘指数实时行情（A股+港股+美股）"""
+    indices = get_market_indices()
+    return make_succ_response(indices)
+
+
+# ── 资讯 ──
+
+@app.route('/news')
+def news_page():
+    return render_template('news.html')
+
+
+@app.route('/api/news')
+def api_news():
+    """财经资讯列表（金十快讯 + 东方财富公告）"""
+    news = get_financial_news()
+    return make_succ_response(news)
+
+
+# ── 大盘指数 ──
+
+@app.route('/api/market/indices')
+def api_market_indices():
+    """大盘指数实时行情（A股+港股+美股）"""
+    indices = get_market_indices()
+    return make_succ_response(indices)
 
 
 # ── 行情总览 ──
