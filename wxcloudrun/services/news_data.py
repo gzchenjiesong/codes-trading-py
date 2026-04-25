@@ -1,9 +1,11 @@
 """
 news_data.py — 财经资讯数据获取服务
-数据源：金十快讯（实时财经快讯）+ 东方财富公告（上市公司公告）
+数据源：金十快讯 + 东方财富研报 + 财联社电报
 """
 import re
 import time
+import json
+from datetime import datetime, timedelta
 import httpx
 
 _news_cache = {"ts": 0, "data": None}
@@ -13,6 +15,7 @@ CACHE_TTL = 60  # 1 分钟缓存
 def _strip_html(text: str) -> str:
     """去除 HTML 标签"""
     text = re.sub(r'<[^>]+>', '', text)
+    text = re.sub(r'&[a-zA-Z]+;', '', text)
     text = re.sub(r'\s+', ' ', text).strip()
     return text
 
@@ -26,17 +29,15 @@ def _is_ad(item: dict) -> bool:
     for kw in ad_keywords:
         if kw in combined:
             return True
-    # 含推广链接但无实质内容
     if "activities" in combined and len(_strip_html(content)) < 20:
         return True
     return False
 
 
 def _fetch_jin10_flash(limit=30):
-    """金十快讯 API — 实时财经快讯"""
+    """金十快讯 — 实时财经快讯"""
     results = []
     try:
-        # 方式1：最新快讯 JS
         url = "https://www.jin10.com/flash_newest.js"
         headers = {
             "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)",
@@ -46,8 +47,7 @@ def _fetch_jin10_flash(limit=30):
         raw = resp.text.strip()
         if raw.startswith("var newest = "):
             raw = raw.replace("var newest = ", "").rstrip(";")
-            import json as _json
-            data = _json.loads(raw)
+            data = json.loads(raw)
             for item in data:
                 if _is_ad(item):
                     continue
@@ -59,8 +59,8 @@ def _fetch_jin10_flash(limit=30):
                     continue
                 is_important = item.get("important", 0) == 1
                 results.append({
-                    "id": item.get("id", ""),
-                    "title": content[:30] + ("..." if len(content) > 30 else ""),
+                    "id": f"jin10_{item.get('id', '')}",
+                    "title": content[:50] + ("..." if len(content) > 50 else ""),
                     "content": content,
                     "date": item.get("time", "")[:16],
                     "source": "金十快讯",
@@ -70,15 +70,14 @@ def _fetch_jin10_flash(limit=30):
     except Exception as e:
         print(f"jin10 flash error: {e}")
 
-    # 方式2：历史数据（补充）
-    if len(results) < 10:
+    # 补充：昨日历史数据
+    if len(results) < 15:
         try:
-            from datetime import datetime
-            now = datetime.now()
-            date_url = f"https://cdn-rili.jin10.com/web_data/{now.year}/{now.month:02d}/{now.day:02d}.json"
+            yesterday = datetime.now() - timedelta(days=1)
+            date_url = f"https://cdn-rili.jin10.com/web_data/{yesterday.year}/{yesterday.month:02d}/{yesterday.day:02d}.json"
             resp = httpx.get(date_url, headers=headers, timeout=10)
-            import json as _json
-            data = _json.loads(resp.text)
+            data = json.loads(resp.text)
+            existing_contents = {r["content"][:20] for r in results}
             for item in data:
                 if _is_ad(item):
                     continue
@@ -88,66 +87,131 @@ def _fetch_jin10_flash(limit=30):
                 content = _strip_html(content)
                 if not content or len(content) < 5:
                     continue
-                # 去重
-                if any(r["content"][:20] == content[:20] for r in results):
+                if content[:20] in existing_contents:
                     continue
                 is_important = item.get("important", 0) == 1
                 results.append({
-                    "id": item.get("id", ""),
-                    "title": content[:30] + ("..." if len(content) > 30 else ""),
+                    "id": f"jin10_{item.get('id', '')}",
+                    "title": content[:50] + ("..." if len(content) > 50 else ""),
                     "content": content,
                     "date": item.get("time", "")[:16],
                     "source": "金十快讯",
                     "category": "快讯",
                     "important": is_important,
                 })
+                existing_contents.add(content[:20])
         except Exception:
             pass
 
     return results[:limit]
 
 
-def _fetch_eastmoney_ann(limit=15):
-    """东方财富公告 API — 上市公司公告"""
+def _fetch_eastmoney_reports(limit=20):
+    """东方财富研报 API — 机构研报 / 行业分析"""
     results = []
     try:
-        url = "https://np-anotice-stock.eastmoney.com/api/security/ann"
+        url = "https://reportapi.eastmoney.com/report/list"
+        # 按日期倒序，取最近研报
+        today = datetime.now()
+        yesterday = today - timedelta(days=1)
+        date_from = f"{yesterday.strftime('%Y-%m-%d')} 00:00:00"
         params = {
-            "sr": "-1", "page_size": str(limit), "page_index": "1",
-            "client_source": "web", "f_node": "0",
+            "industryCode": "*",
+            "pageSize": str(limit),
+            "industry": "*",
+            "rating": "*",
+            "ratingChange": "*",
+            "beginTime": date_from,
+            "endTime": "",
+            "pageNo": "1",
+            "fields": "",
+            "qType": "1",  # 1=个股研报, 0=行业研报
+            "orgCode": "",
+            "rcode": "",
+            "p": "1",
+            "pageNum": "1",
         }
         headers = {"User-Agent": "Mozilla/5.0"}
         resp = httpx.get(url, headers=headers, params=params, timeout=10)
         data = resp.json()
-        for item in data.get("data", {}).get("list", []):
-            title = item.get("title_ch") or item.get("title", "")
+        for item in data.get("data", []):
+            title = item.get("title", "")
             if not title:
                 continue
-            codes = item.get("codes", [])
-            company = codes[0].get("short_name", "") if codes else ""
-            src = item.get("source_type", "")
-            source_map = {"331": "深交所", "333": "上交所", "44": "基金公告"}
-            source = source_map.get(src, "公告")
+            org_name = item.get("orgSName", "") or item.get("orgName", "")
+            info_code = item.get("infoCode", "")
+            stock_name = item.get("stockName", "")
+            stock_code = item.get("stockCode", "")
+            publish_date = item.get("publishDate", "")[:16]
+            # 摘要：取前三段或全部
+            content = title
+            if stock_name:
+                content = f"【{stock_name}】{title}"
             results.append({
-                "id": item.get("art_code", ""),
-                "title": title[:30] + ("..." if len(title) > 30 else ""),
-                "content": title,
-                "date": item.get("display_time", "")[:16],
-                "source": source,
-                "category": "公告",
+                "id": f"report_{info_code}",
+                "title": title[:50] + ("..." if len(title) > 50 else ""),
+                "content": content,
+                "date": publish_date,
+                "source": org_name or "研报",
+                "category": "研报",
                 "important": False,
-                "company": company,
+                "stock": stock_name or "",
+                "url": f"https://data.eastmoney.com/report/zw/industry.jshtml?infocode={info_code}" if info_code else "",
             })
     except Exception as e:
-        print(f"eastmoney ann error: {e}")
-    return results
+        print(f"eastmoney reports error: {e}")
+    return results[:limit]
+
+
+def _fetch_cls_telegraph(limit=25):
+    """财联社电报 — 实时财经快讯（深度报道版）"""
+    results = []
+    try:
+        url = "https://www.cls.cn/nodeapi/updateTelegraphList"
+        params = {
+            "app": "CailianpressWeb",
+            "os": "web",
+            "sv": "7.7.5",
+            "rn": str(limit),
+            "last_time": "0",
+        }
+        headers = {
+            "User-Agent": "Mozilla/5.0",
+            "Referer": "https://www.cls.cn/telegraph",
+        }
+        resp = httpx.get(url, headers=headers, params=params, timeout=10)
+        data = resp.json()
+        rolls = data.get("data", {}).get("roll_data", [])
+        for item in rolls:
+            content = item.get("content", "")
+            title = item.get("title", "") or content[:50]
+            content = _strip_html(content)
+            if not content or len(content) < 5:
+                continue
+            ctime = item.get("ctime", 0)
+            date_str = ""
+            if ctime:
+                date_str = datetime.fromtimestamp(ctime).strftime("%Y-%m-%d %H:%M")
+            is_important = item.get("level", 0) >= 2  # level >= 2 为重要
+            results.append({
+                "id": f"cls_{item.get('id', '')}",
+                "title": title[:50] + ("..." if len(title) > 50 else ""),
+                "content": content,
+                "date": date_str,
+                "source": "财联社",
+                "category": "电报",
+                "important": is_important,
+            })
+    except Exception as e:
+        print(f"cls telegraph error: {e}")
+    return results[:limit]
 
 
 def get_financial_news():
     """
-    获取财经资讯（金十快讯 + 东方财富公告）。
-    返回：[{id, title, content, date, source, category, important, company?}, ...]
-    按时间倒序，最多 40 条。
+    获取财经资讯（金十快讯 + 东方财富研报 + 财联社电报）。
+    返回：[{id, title, content, date, source, category, important, ...}, ...]
+    按时间倒序，最多 60 条。
     """
     now = time.time()
     if _news_cache["data"] and (now - _news_cache["ts"]) < CACHE_TTL:
@@ -155,12 +219,21 @@ def get_financial_news():
 
     news = []
     news.extend(_fetch_jin10_flash(25))
-    news.extend(_fetch_eastmoney_ann(15))
+    news.extend(_fetch_eastmoney_reports(20))
+    news.extend(_fetch_cls_telegraph(25))
 
-    # 按时间倒序
-    news.sort(key=lambda x: x.get("date", ""), reverse=True)
-    news = news[:40]
+    # 按时间倒序，去重（按 content 前 20 字去重）
+    seen = set()
+    deduped = []
+    for item in news:
+        key = item["content"][:20]
+        if key in seen:
+            continue
+        seen.add(key)
+        deduped.append(item)
+    deduped.sort(key=lambda x: x.get("date", ""), reverse=True)
+    deduped = deduped[:60]
 
     _news_cache["ts"] = now
-    _news_cache["data"] = news
-    return news
+    _news_cache["data"] = deduped
+    return deduped
