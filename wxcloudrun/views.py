@@ -266,3 +266,48 @@ def market_kline(code):
     days = int(request.args.get("days", 120))
     data = get_etf_kline(code, market=market, days=days)
     return make_succ_response(data)
+
+
+@app.route('/api/debug/jin10')
+def debug_jin10():
+    """诊断金十快讯 API 连通性"""
+    import json as _json
+    from datetime import datetime, timedelta
+    headers = {
+        "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 16_0 like Mac OS X)",
+        "Referer": "https://www.jin10.com/",
+    }
+    result = {"flash_newest": None, "cdn_days": []}
+
+    # 测试 flash_newest.js
+    try:
+        resp = httpx.get("https://www.jin10.com/flash_newest.js", headers=headers, timeout=10, follow_redirects=True)
+        raw = resp.text[:300]
+        starts_ok = resp.text.strip().startswith("var newest = ")
+        result["flash_newest"] = {
+            "status": resp.status_code,
+            "starts_with_var_newest": starts_ok,
+            "preview": raw,
+            "content_length": len(resp.text),
+        }
+    except Exception as e:
+        result["flash_newest"] = {"error": str(e)}
+
+    # 测试 CDN 历史数据（最近3天）
+    for offset in range(1, 4):
+        d = datetime.now() - timedelta(days=offset)
+        url = f"https://cdn-rili.jin10.com/web_data/{d.year}/{d.month:02d}/{d.day:02d}.json"
+        try:
+            resp = httpx.get(url, headers=headers, timeout=10, follow_redirects=True)
+            data = _json.loads(resp.text) if resp.status_code == 200 else None
+            type0_count = len([x for x in data if x.get("type") == 0]) if data else 0
+            result["cdn_days"].append({
+                "date": d.strftime("%Y-%m-%d"),
+                "status": resp.status_code,
+                "total_items": len(data) if data else 0,
+                "type0_items": type0_count,
+            })
+        except Exception as e:
+            result["cdn_days"].append({"date": d.strftime("%Y-%m-%d"), "error": str(e)})
+
+    return jsonify(result)
