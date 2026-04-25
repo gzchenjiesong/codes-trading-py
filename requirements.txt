@@ -5,3 +5,4 @@ MarkupSafe==2.0.1
 Werkzeug==2.0.2
 httpx==0.28.1
 PyJWT==2.8.0
+curl_cffi>=0.5.0

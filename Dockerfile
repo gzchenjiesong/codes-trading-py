@@ -13,7 +13,7 @@ RUN apk add ca-certificates
 # 选用国内镜像源以提高下载速度
 RUN sed -i 's/dl-cdn.alpinelinux.org/mirrors.tencent.com/g' /etc/apk/repositories \
 # 安装python3
-&& apk add --update --no-cache python3 py3-pip \
+&& apk add --update --no-cache python3 py3-pip curl-dev \
 && rm -rf /var/cache/apk/*
 
 # 拷贝当前项目到/app目录下（.dockerignore中文件除外）
