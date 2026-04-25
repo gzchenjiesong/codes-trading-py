@@ -78,10 +78,10 @@ def get_financial_news(days: int = 2):
     news = []
     seen_keys = set()
 
-    # 今日最新快讯
+    # 今日最新快讯（follow_redirects=True 处理 CDN 重定向）
     try:
         url = "https://www.jin10.com/flash_newest.js"
-        resp = httpx.get(url, headers=headers, timeout=10)
+        resp = httpx.get(url, headers=headers, timeout=10, follow_redirects=True)
         raw = resp.text.strip()
         if raw.startswith("var newest = "):
             raw = raw.replace("var newest = ", "").rstrip(";")
@@ -95,11 +95,12 @@ def get_financial_news(days: int = 2):
         print(f"jin10 today error: {e}")
 
     # CDN 历史数据：回溯最近 days 天（解决凌晨跨天数据为空）
+    # 注意：cdn-rili.jin10.com 在部分云环境 DNS 不可用，失败时静默跳过
     for offset in range(1, days + 1):
         try:
             d = datetime.now() - timedelta(days=offset)
             date_url = f"https://cdn-rili.jin10.com/web_data/{d.year}/{d.month:02d}/{d.day:02d}.json"
-            resp = httpx.get(date_url, headers=headers, timeout=10)
+            resp = httpx.get(date_url, headers=headers, timeout=10, follow_redirects=True)
             data = json.loads(resp.text)
             for item in _parse_jin10_items(data):
                 key = item["content"][:20]
