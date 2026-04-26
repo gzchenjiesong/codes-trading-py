@@ -18,6 +18,10 @@ from wxcloudrun.services.fund_data import (
 )
 from wxcloudrun.services.news_data import get_financial_news
 from wxcloudrun.services.market_data import get_market_indices
+from wxcloudrun.services.stock_data import (
+    get_stock_quote, get_stock_batch_quote, get_stock_kline,
+    get_technical_indicators, detect_market,
+)
 from wxcloudrun.response import make_succ_response, make_err_response
 
 
@@ -311,3 +315,64 @@ def debug_jin10():
             result["cdn_days"].append({"date": d.strftime("%Y-%m-%d"), "error": str(e)})
 
     return jsonify(result)
+
+
+# ── A 股行情 API（智兔数服）──
+
+@app.route('/api/stock/quote/<code>')
+def stock_quote(code):
+    """单只 A 股实时行情"""
+    code = code.strip()
+    data = get_stock_quote(code)
+    if "error" in data:
+        return make_err_response(data["error"])
+    return make_succ_response(data)
+
+
+@app.route('/api/stock/batch-quote', methods=['POST'])
+def stock_batch_quote():
+    """批量获取 A 股实时行情"""
+    codes = request.json.get("codes", []) if request.is_json else []
+    if not codes:
+        return make_err_response("请提供股票代码列表")
+    data = get_stock_batch_quote(codes)
+    return make_succ_response(data)
+
+
+@app.route('/api/stock/kline/<code>')
+def stock_kline(code):
+    """
+    A 股 K 线数据
+    参数：market(SH/SZ), period(d/w/m/y/5/15/30/60), adjust(n/f/b),
+          start(YYYYMMDD), end(YYYYMMDD), limit(int)
+    """
+    code = code.strip()
+    market = request.args.get("market", detect_market(code))
+    period = request.args.get("period", "d")
+    adjust = request.args.get("adjust", "n")
+    start = request.args.get("start")
+    end = request.args.get("end")
+    limit = request.args.get("limit", type=int)
+    data = get_stock_kline(code, market=market, period=period,
+                           adjust=adjust, start=start, end=end, limit=limit)
+    return make_succ_response(data)
+
+
+@app.route('/api/stock/indicator/<code>')
+def stock_indicator(code):
+    """
+    A 股技术指标
+    参数：market, period, indicator(macd/kdj), adjust, start, end, limit
+    """
+    code = code.strip()
+    market = request.args.get("market", detect_market(code))
+    period = request.args.get("period", "d")
+    indicator = request.args.get("indicator", "macd")
+    adjust = request.args.get("adjust", "n")
+    start = request.args.get("start")
+    end = request.args.get("end")
+    limit = request.args.get("limit", type=int)
+    data = get_technical_indicators(code, market=market, period=period,
+                                    indicator=indicator, adjust=adjust,
+                                    start=start, end=end, limit=limit)
+    return make_succ_response(data)
