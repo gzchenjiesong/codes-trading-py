@@ -3,58 +3,96 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,minimum-scale=1,maximum-scale=1,user-scalable=no">
-<title>大盘行情 - 网格交易系统</title>
+<title>市场 - 网格交易系统</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f5f5f5;color:#333;font-size:14px}
-.navbar{background:linear-gradient(135deg,#07c160,#06ad56);color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.1)}
+body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif;background:#f0f2f5;color:#333;font-size:14px}
+.navbar{background:linear-gradient(135deg,#1a73e8,#1565c0);color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100;box-shadow:0 2px 8px rgba(0,0,0,.12)}
 .navbar h1{font-size:17px;font-weight:600}
 .nav-links{display:flex;gap:12px;align-items:center}
-.nav-links a{color:rgba(255,255,255,.85);text-decoration:none;font-size:13px;padding:4px 8px;border-radius:4px}
-.nav-links a:hover,.nav-links a.active{background:rgba(255,255,255,.2);color:#fff}
-.container{max-width:960px;margin:0 auto;padding:12px}
-.section-title{font-size:15px;font-weight:600;margin:16px 0 10px;display:flex;align-items:center;gap:6px}
+.nav-links a{color:rgba(255,255,255,.75);text-decoration:none;font-size:13px;padding:4px 8px;border-radius:4px}
+.nav-links a:hover,.nav-links a.active{background:rgba(255,255,255,.18);color:#fff}
 
-/* 大盘指数 */
-.indices-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-bottom:16px}
-@media(max-width:600px){.indices-grid{grid-template-columns:repeat(2,1fr)}}
-.idx-card{background:#fff;border-radius:10px;padding:12px;text-align:center;box-shadow:0 1px 3px rgba(0,0,0,.05)}
-.idx-card .name{font-size:13px;color:#666;margin-bottom:4px}
-.idx-card .price{font-size:20px;font-weight:700;font-family:monospace}
-.idx-card .change{font-size:13px;font-weight:600;margin-top:2px}
+.container{max-width:960px;margin:0 auto;padding:12px}
+
+/* 区域标题 */
+.section{margin-bottom:16px}
+.section-title{font-size:15px;font-weight:600;margin-bottom:8px;display:flex;align-items:center;gap:6px}
+.section-title .emoji{font-size:16px}
+
+/* ── 核心指数 ── */
+.idx-group{margin-bottom:2px}
+.idx-group-label{font-size:12px;color:#888;padding:6px 4px 4px;font-weight:500}
+.idx-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
+@media(min-width:640px){.idx-grid{grid-template-columns:repeat(3,1fr)}}
+.idx-card{background:#fff;border-radius:10px;padding:10px 12px;box-shadow:0 1px 3px rgba(0,0,0,.04);cursor:pointer;transition:box-shadow .15s}
+.idx-card:active{box-shadow:0 1px 8px rgba(0,0,0,.1)}
+.idx-card .head{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:2px}
+.idx-card .name{font-size:14px;font-weight:600}
+.idx-card .desc{font-size:11px;color:#aaa}
+.idx-card .price-row{display:flex;align-items:baseline;gap:8px;margin:4px 0}
+.idx-card .price{font-size:20px;font-weight:700;font-family:"SF Mono",Menlo,monospace}
+.idx-card .change{font-size:13px;font-weight:600;font-family:"SF Mono",Menlo,monospace}
+.idx-card .mini-kline{height:36px;margin-top:4px}
+
 .up{color:#e74c3c}
 .down{color:#2e7d32}
 .flat{color:#999}
 
-/* ETF 列表 */
-.etf-table{width:100%;border-collapse:collapse;background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:12px}
-.etf-table th{background:#f8f9fa;padding:8px 6px;text-align:center;font-size:12px;color:#666;font-weight:600;border-bottom:2px solid #e9ecef;white-space:nowrap}
-.etf-table td{padding:7px 6px;text-align:center;font-size:13px;border-bottom:1px solid #f5f5f5}
-.etf-table tr:last-child td{border-bottom:none}
-.etf-table .name-cell{text-align:left;padding-left:12px}
-.etf-table .etf-name{font-weight:500;display:block}
-.etf-table .etf-code{font-size:11px;color:#999}
-.price-col{font-family:monospace;font-weight:600}
-.up-col{color:#e74c3c}
-.down-col{color:#2e7d32}
+/* ── 板块排行 ── */
+.sector-tabs{display:flex;gap:0;margin-bottom:8px;border-radius:8px;overflow:hidden;border:1px solid #e0e0e0;width:fit-content}
+.sector-tab{padding:6px 16px;font-size:13px;background:#fff;border:none;cursor:pointer;font-weight:500;color:#666}
+.sector-tab.active{background:#1a73e8;color:#fff}
+.sector-tab:not(:last-child){border-right:1px solid #e0e0e0}
 
-/* K 线弹窗 */
-.modal-overlay{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:200;align-items:center;justify-content:center}
-.modal-overlay.show{display:flex}
-.modal{background:#fff;border-radius:12px;width:95%;max-width:500px;max-height:80vh;padding:16px;overflow:auto}
+.sector-rank{display:flex;flex-direction:column;gap:2px}
+.sector-row{display:flex;align-items:center;padding:7px 12px;background:#fff;border-radius:6px;font-size:13px}
+.sector-row .rank-num{width:24px;font-size:12px;color:#bbb;font-weight:600}
+.sector-row .s-name{flex:1;font-weight:500}
+.sector-row .s-pct{width:70px;text-align:right;font-weight:600;font-family:"SF Mono",Menlo,monospace}
+.sector-row .s-vol{width:80px;text-align:right;font-size:12px;color:#999}
+
+/* ── 用户关注板块 ── */
+.user-empty{text-align:center;color:#bbb;padding:24px;font-size:13px}
+.user-sector-chip{display:inline-flex;align-items:center;gap:4px;background:#fff;border:1px solid #e8e8e8;border-radius:16px;padding:5px 12px;margin:3px;font-size:13px}
+.user-sector-chip .chip-pct{font-weight:600;font-family:"SF Mono",Menlo,monospace}
+.user-sector-chip .chip-remove{background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;line-height:1;padding:0 0 0 4px}
+
+/* 添加板块弹窗 */
+.modal-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.45);z-index:200;align-items:flex-end;justify-content:center}
+.modal-bg.show{display:flex}
+.modal-sheet{background:#fff;border-radius:16px 16px 0 0;width:100%;max-width:640px;max-height:70vh;padding:16px;overflow:auto}
 .modal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:12px}
 .modal-title{font-size:16px;font-weight:600}
-.modal-close{background:none;border:none;font-size:20px;cursor:pointer;color:#999}
-.canvas-wrap{width:100%;height:220px;background:#fafafa;border-radius:8px}
-.loading{text-align:center;padding:40px;color:#999}
-.kline-btn{background:none;border:1px solid #07c160;color:#07c160;padding:3px 8px;border-radius:4px;font-size:11px;cursor:pointer}
-.kline-btn:hover{background:#07c160;color:#fff}
+.modal-close{background:none;border:none;font-size:22px;cursor:pointer;color:#999}
+.sector-search{width:100%;padding:8px 12px;border:1px solid #ddd;border-radius:8px;font-size:14px;margin-bottom:10px;outline:none}
+.sector-search:focus{border-color:#1a73e8}
+.sector-option{display:flex;align-items:center;padding:8px 10px;border-radius:6px;cursor:pointer;font-size:13px}
+.sector-option:hover{background:#f5f5f5}
+.sector-option .opt-name{flex:1}
+.sector-option .opt-add{color:#1a73e8;font-size:18px;font-weight:600}
+
+/* K 线弹窗 */
+.kline-modal-bg{display:none;position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,.5);z-index:300;align-items:center;justify-content:center}
+.kline-modal-bg.show{display:flex}
+.kline-box{background:#fff;border-radius:12px;width:95%;max-width:500px;padding:16px}
+.kline-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.kline-title{font-size:16px;font-weight:600}
+.canvas-wrap{width:100%;height:240px;background:#fafafa;border-radius:8px}
+.canvas-wrap canvas{width:100%;height:100%}
+
+.loading{text-align:center;padding:32px;color:#bbb}
+.tab-bar{display:flex;justify-content:space-around;background:#fff;border-top:1px solid #eee;padding:6px 0;position:fixed;bottom:0;left:0;right:0;z-index:100}
+.tab-bar a{color:#888;text-decoration:none;font-size:12px;text-align:center}
+.tab-bar a.active{color:#1a73e8}
+.tab-bar .tab-icon{font-size:20px;display:block}
+body{padding-bottom:56px}
 </style>
 </head>
 <body>
 
 <div class="navbar">
-  <h1>📊 大盘行情</h1>
+  <h1>📊 市场</h1>
   <div class="nav-links">
     <a href="/">标的</a>
     <a href="/market" class="active">市场</a>
@@ -63,193 +101,285 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
 </div>
 
 <div class="container">
-  <!-- 大盘指数 -->
-  <div class="section-title">🌍 大盘指数</div>
-  <div class="indices-grid" id="indices-grid">
-    <div class="loading" style="grid-column:1/-1">加载中...</div>
+
+  <!-- 核心指数 -->
+  <div class="section">
+    <div class="section-title"><span class="emoji">🌍</span>核心指数</div>
+    <div id="idx-grid" class="idx-grid">
+      <div class="loading" style="grid-column:1/-1">加载中...</div>
+    </div>
   </div>
 
-  <!-- ETF 行情 -->
-  <div class="section-title">📈 关注 ETF / LOF</div>
-  <table class="etf-table" id="etf-table">
-    <thead><tr>
-      <th class="name-cell">名称</th><th>现价</th><th>涨跌幅</th><th>昨收</th><th>操作</th>
-    </tr></thead>
-    <tbody id="etf-body">
-      <tr><td colspan="5" class="loading">加载中...</td></tr>
-    </tbody>
-  </table>
+  <!-- 板块排行 -->
+  <div class="section">
+    <div class="section-title"><span class="emoji">📊</span>板块排行</div>
+    <div class="sector-tabs">
+      <button class="sector-tab active" onclick="switchSectorTab('industry',this)">行业板块</button>
+      <button class="sector-tab" onclick="switchSectorTab('concept',this)">概念板块</button>
+    </div>
+    <div id="sector-ranking" class="sector-rank">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+
+  <!-- 我的板块关注 -->
+  <div class="section">
+    <div class="section-title">
+      <span class="emoji">⭐</span>我的板块
+      <span style="flex:1"></span>
+      <button onclick="openAddSector()" style="background:#1a73e8;color:#fff;border:none;border-radius:6px;padding:4px 12px;font-size:12px;cursor:pointer">＋ 添加</button>
+    </div>
+    <div id="user-sectors" class="sector-rank">
+      <div class="loading">加载中...</div>
+    </div>
+  </div>
+
+</div>
+
+<!-- 底部 Tab -->
+<div class="tab-bar">
+  <a href="/"><span class="tab-icon">📋</span>标的</a>
+  <a href="/market" class="active"><span class="tab-icon">📈</span>市场</a>
+  <a href="/news"><span class="tab-icon">📰</span>资讯</a>
+</div>
+
+<!-- 添加板块弹窗 -->
+<div class="modal-bg" id="add-modal">
+  <div class="modal-sheet">
+    <div class="modal-header">
+      <span class="modal-title">添加关注板块</span>
+      <button class="modal-close" onclick="closeAddSector()">×</button>
+    </div>
+    <input type="text" class="sector-search" id="sector-search-input" placeholder="搜索板块名称..." oninput="filterSectorOptions()">
+    <div id="sector-options" class="sector-rank"></div>
+  </div>
 </div>
 
 <!-- K 线弹窗 -->
-<div class="modal-overlay" id="kline-modal">
-  <div class="modal">
-    <div class="modal-header">
-      <span class="modal-title" id="kline-title">K 线图</span>
-      <button class="modal-close" onclick="closeKlineModal()">×</button>
+<div class="kline-modal-bg" id="kline-modal">
+  <div class="kline-box">
+    <div class="kline-header">
+      <span class="kline-title" id="kline-title">K线</span>
+      <button class="modal-close" onclick="closeKline()">×</button>
     </div>
-    <div class="canvas-wrap">
-      <canvas id="kline-canvas" style="width:100%;height:100%"></canvas>
-    </div>
+    <div class="canvas-wrap"><canvas id="kline-canvas"></canvas></div>
   </div>
 </div>
 
 <script>
-// ── 工具函数 ──
-function fmtPrice(p) {
-  if (!p) return '--';
-  return p < 10 ? p.toFixed(4) : p < 100 ? p.toFixed(3) : p.toFixed(2);
+// ── 工具 ──
+function fmtP(p){if(!p)return'--';return p<10?p.toFixed(4):p<100?p.toFixed(3):p.toFixed(2)}
+function pctFmt(v){const s=v>0?'+':'';return s+v.toFixed(2)+'%'}
+function cls(v){return v>0?'up':v<0?'down':'flat'}
+
+// ── 核心指数 ──
+let _allIndices = [];
+async function loadIndices(){
+  try{
+    const r = await fetch('/api/market/indices');
+    const d = await r.json();
+    if(d.code!==0){document.getElementById('idx-grid').innerHTML='<div class="loading" style="grid-column:1/-1">加载失败</div>';return}
+    _allIndices = d.data||[];
+    renderIndices(_allIndices);
+  }catch(e){document.getElementById('idx-grid').innerHTML='<div class="loading" style="grid-column:1/-1">网络错误</div>'}
 }
 
-function changeClass(val) {
-  return val > 0 ? 'up-col' : val < 0 ? 'down-col' : '';
+function renderIndices(list){
+  const grid = document.getElementById('idx-grid');
+  grid.innerHTML = list.map(idx=>{
+    const c = cls(idx.change_pct);
+    const sign = idx.change_pct>0?'+':'';
+    return `<div class="idx-card" onclick="openIndexKline('${idx.code}','${idx.market||'cn'}','${idx.name}')">
+      <div class="head"><span class="name">${idx.name}</span><span class="desc">${idx.desc||''}</span></div>
+      <div class="price-row">
+        <span class="price">${fmtP(idx.price)}</span>
+        <span class="change ${c}">${sign}${(idx.change_pct||0).toFixed(2)}%</span>
+      </div>
+      <canvas class="mini-kline" id="mk-${idx.code.replace(/[^a-zA-Z0-9]/g,'')}"></canvas>
+    </div>`;
+  }).join('');
+  // 异步加载迷你K线
+  list.forEach(idx=>loadMiniKline(idx.code, idx.market||'cn'));
 }
 
-function changeSign(val) {
-  return val > 0 ? '+' : '';
+async function loadMiniKline(code, market){
+  const cid = 'mk-'+code.replace(/[^a-zA-Z0-9]/g,'');
+  const canvas = document.getElementById(cid);
+  if(!canvas)return;
+  const ctx = canvas.getContext('2d');
+  canvas.width = canvas.offsetWidth*2; canvas.height = canvas.offsetHeight*2;
+  try{
+    const r = await fetch(`/api/market/index-kline/${code}?market=${market}&days=30`);
+    const d = await r.json();
+    if(d.code!==0||!d.data||d.data.length<2)return;
+    drawMiniLine(ctx, canvas.width, canvas.height, d.data.map(x=>x.close));
+  }catch(e){}
 }
 
-// ── 大盘指数 ──
-async function loadIndices() {
-  try {
-    const resp = await fetch('/api/market/indices');
-    const data = await resp.json();
-    const grid = document.getElementById('indices-grid');
-    if (data.code !== 0) { grid.innerHTML = '<div class="loading" style="grid-column:1/-1">加载失败</div>'; return; }
-    grid.innerHTML = (data.data || []).map(idx => {
-      const pct = idx.change_pct || 0;
-      const cls = pct > 0 ? 'up' : pct < 0 ? 'down' : 'flat';
-      const sign = changeSign(pct);
-      const chgVal = idx.change || 0;
-      return `<div class="idx-card">
-        <div class="name">${idx.name}</div>
-        <div class="price">${fmtPrice(idx.price)}</div>
-        <div class="change ${cls}">${sign}${pct.toFixed(2)}%  (${sign}${chgVal.toFixed(2)})</div>
+function drawMiniLine(ctx,w,h,vals){
+  ctx.clearRect(0,0,w,h);
+  const pad=2, cw=w-pad*2, ch=h-pad*2;
+  const mn=Math.min(...vals), mx=Math.max(...vals), rng=mx-mn||1;
+  const up = vals[vals.length-1]>=vals[0];
+  ctx.strokeStyle = up?'#e74c3c':'#2e7d32';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  vals.forEach((v,i)=>{
+    const x=pad+cw*i/(vals.length-1), y=pad+ch*(1-(v-mn)/rng);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  });
+  ctx.stroke();
+}
+
+// ── 板块排行 ──
+let _currentSectorType = 'industry';
+async function loadSectorRanking(type){
+  _currentSectorType = type||_currentSectorType;
+  const container = document.getElementById('sector-ranking');
+  container.innerHTML = '<div class="loading">加载中...</div>';
+  try{
+    const r = await fetch(`/api/market/sectors/ranking?type=${_currentSectorType}&top=10`);
+    const d = await r.json();
+    if(d.code!==0||!d.data||d.data.length===0){container.innerHTML='<div class="loading">暂无数据</div>';return}
+    container.innerHTML = d.data.map((s,i)=>{
+      const c = cls(s.change_pct);
+      const sign = s.change_pct>0?'+':'';
+      return `<div class="sector-row">
+        <span class="rank-num">${i+1}</span>
+        <span class="s-name">${s.name}</span>
+        <span class="s-pct ${c}">${sign}${(s.change_pct||0).toFixed(2)}%</span>
       </div>`;
     }).join('');
-  } catch(e) {
-    document.getElementById('indices-grid').innerHTML = '<div class="loading" style="grid-column:1/-1">网络错误</div>';
-  }
+  }catch(e){container.innerHTML='<div class="loading">网络错误</div>'}
 }
 
-// ── ETF 行情 ──
-async function loadETFs() {
-  try {
-    const resp = await fetch('/api/market/quotes');
-    const data = await resp.json();
-    const tbody = document.getElementById('etf-body');
-    if (data.code !== 0) { tbody.innerHTML = '<tr><td colspan="5">加载失败</td></tr>'; return; }
-    tbody.innerHTML = (data.data || []).map(etf => {
-      const pct = etf.change_pct || 0;
-      const cls = changeClass(pct);
-      const sign = changeSign(pct);
-      return `<tr>
-        <td class="name-cell"><span class="etf-name">${etf.name}</span><span class="etf-code">${etf.code}</span></td>
-        <td class="price-col ${cls}">${fmtPrice(etf.price)}</td>
-        <td class="${cls}">${sign}${pct.toFixed(2)}%</td>
-        <td style="color:#999">${fmtPrice(etf.prev_close)}</td>
-        <td><button class="kline-btn" onclick="openKline('${etf.code}','${etf.market||'sh'}','${etf.name}')">K线</button></td>
-      </tr>`;
+function switchSectorTab(type,btn){
+  document.querySelectorAll('.sector-tab').forEach(b=>b.classList.remove('active'));
+  btn.classList.add('active');
+  loadSectorRanking(type);
+}
+
+// ── 用户关注板块 ──
+async function loadUserSectors(){
+  const container = document.getElementById('user-sectors');
+  try{
+    const r = await fetch('/api/user/sectors');
+    const d = await r.json();
+    if(d.code!==0||!d.data||d.data.length===0){
+      container.innerHTML='<div class="user-empty">暂无关注板块，点击右上角「＋ 添加」</div>';return}
+    container.innerHTML = d.data.map(s=>{
+      const c = cls(s.change_pct);
+      const sign = s.change_pct>0?'+':'';
+      return `<div class="sector-row">
+        <span class="s-name">${s.sector_name}</span>
+        <span class="s-pct ${c}">${s.change_pct!==undefined?sign+s.change_pct.toFixed(2)+'%':'--'}</span>
+        <button onclick="removeUserSector(${s.id})" style="background:none;border:none;color:#ccc;cursor:pointer;font-size:16px;margin-left:8px">×</button>
+      </div>`;
     }).join('');
-  } catch(e) {
-    document.getElementById('etf-body').innerHTML = '<tr><td colspan="5">网络错误</td></tr>';
-  }
+  }catch(e){container.innerHTML='<div class="loading">网络错误</div>'}
 }
 
-// ── K 线弹窗 ──
-async function openKline(code, market, name) {
-  document.getElementById('kline-title').textContent = name + ' K线图';
-  document.getElementById('kline-modal').classList.add('show');
+async function removeUserSector(id){
+  try{
+    await fetch(`/api/user/sectors?id=${id}`,{method:'DELETE'});
+    loadUserSectors();
+  }catch(e){}
+}
 
+// ── 添加板块弹窗 ──
+let _allSectors = [];
+async function openAddSector(){
+  document.getElementById('add-modal').classList.add('show');
+  document.getElementById('sector-search-input').value='';
+  const container = document.getElementById('sector-options');
+  container.innerHTML='<div class="loading">加载中...</div>';
+  try{
+    const [r1,r2] = await Promise.all([
+      fetch('/api/market/sectors?type=industry&limit=200'),
+      fetch('/api/market/sectors?type=concept&limit=200'),
+    ]);
+    const [d1,d2] = await Promise.all([r1.json(),r2.json()]);
+    _allSectors = [
+      ...(d1.data||[]).map(s=>({...s, sector_type:'industry'})),
+      ...(d2.data||[]).map(s=>({...s, sector_type:'concept'})),
+    ];
+    renderSectorOptions(_allSectors.slice(0,30));
+  }catch(e){container.innerHTML='<div class="loading">加载失败</div>'}
+}
+
+function renderSectorOptions(list){
+  document.getElementById('sector-options').innerHTML = list.map(s=>
+    `<div class="sector-option" onclick="addUserSector('${s.code}','${s.name}','${s.sector_type}')">
+      <span class="opt-name">${s.name}</span>
+      <span style="font-size:11px;color:#aaa;margin-right:8px">${s.sector_type==='industry'?'行业':'概念'}</span>
+      <span class="opt-add">＋</span>
+    </div>`
+  ).join('');
+}
+
+function filterSectorOptions(){
+  const q = document.getElementById('sector-search-input').value.trim().toLowerCase();
+  if(!q){renderSectorOptions(_allSectors.slice(0,30));return}
+  const filtered = _allSectors.filter(s=>s.name.toLowerCase().includes(q)).slice(0,30);
+  renderSectorOptions(filtered);
+}
+
+async function addUserSector(code,name,stype){
+  try{
+    await fetch('/api/user/sectors',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({sector_code:code, sector_name:name, sector_type:stype})
+    });
+    closeAddSector();
+    loadUserSectors();
+  }catch(e){}
+}
+
+function closeAddSector(){document.getElementById('add-modal').classList.remove('show')}
+document.getElementById('add-modal').addEventListener('click',function(e){if(e.target===this)closeAddSector()});
+
+// ── 指数 K 线弹窗 ──
+async function openIndexKline(code,market,name){
+  document.getElementById('kline-title').textContent=name+' 日K线';
+  document.getElementById('kline-modal').classList.add('show');
   const canvas = document.getElementById('kline-canvas');
   const ctx = canvas.getContext('2d');
-  canvas.width = canvas.offsetWidth * 2;
-  canvas.height = canvas.offsetHeight * 2;
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  ctx.fillStyle = '#999'; ctx.font = '24px sans-serif'; ctx.textAlign = 'center';
-  ctx.fillText('加载中...', canvas.width/2, canvas.height/2);
-
-  try {
-    const resp = await fetch(`/api/market/kline/${code}?market=${market}&days=60`);
-    const data = await resp.json();
-    if (data.code !== 0 || !data.data || data.data.length === 0) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.fillText('暂无数据', canvas.width/2, canvas.height/2);
-      return;
-    }
-    drawKline(ctx, canvas.width, canvas.height, data.data);
-  } catch(e) {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    ctx.fillText('加载失败', canvas.width/2, canvas.height/2);
-  }
+  canvas.width=canvas.offsetWidth*2; canvas.height=canvas.offsetHeight*2;
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.fillStyle='#999';ctx.font='20px sans-serif';ctx.textAlign='center';
+  ctx.fillText('加载中...',canvas.width/2,canvas.height/2);
+  try{
+    const r = await fetch(`/api/market/index-kline/${code}?market=${market}&days=120`);
+    const d = await r.json();
+    if(d.code!==0||!d.data||d.data.length===0){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillText('暂无数据',canvas.width/2,canvas.height/2);return}
+    drawKline(ctx,canvas.width,canvas.height,d.data);
+  }catch(e){ctx.clearRect(0,0,canvas.width,canvas.height);ctx.fillText('加载失败',canvas.width/2,canvas.height/2)}
 }
 
-function drawKline(ctx, w, h, data) {
-  ctx.clearRect(0, 0, w, h);
-  const pad = {l:60, r:20, t:20, b:30};
-  const cw = w - pad.l - pad.r;
-  const ch = h - pad.t - pad.b;
-  const n = data.length;
-  const barW = Math.max(4, cw / n * 0.6);
-  const gap = cw / n;
-
-  const highs = data.map(d => d.high);
-  const lows = data.map(d => d.low);
-  const maxP = Math.max(...highs);
-  const minP = Math.min(...lows);
-  const range = maxP - minP || 1;
-
+function drawKline(ctx,w,h,data){
+  ctx.clearRect(0,0,w,h);
+  const p={l:56,r:16,t:16,b:28}, cw=w-p.l-p.r, ch=h-p.t-p.b, n=data.length;
+  const barW=Math.max(3,cw/n*0.55), gap=cw/n;
+  const highs=data.map(d=>d.high), lows=data.map(d=>d.low);
+  const mx=Math.max(...highs), mn=Math.min(...lows), rng=mx-mn||1;
   // 价格轴
-  ctx.fillStyle = '#bbb'; ctx.font = '18px monospace'; ctx.textAlign = 'right';
-  for (let i = 0; i <= 4; i++) {
-    const p = maxP - range * i / 4;
-    const y = pad.t + ch * i / 4;
-    ctx.fillText(p.toFixed(3), pad.l - 6, y + 6);
-    ctx.strokeStyle = '#f0f0f0'; ctx.beginPath(); ctx.moveTo(pad.l, y); ctx.lineTo(w - pad.r, y); ctx.stroke();
-  }
-
-  // K 线
-  data.forEach((d, i) => {
-    const x = pad.l + gap * i + gap / 2;
-    const yH = pad.t + (maxP - d.high) / range * ch;
-    const yL = pad.t + (maxP - d.low) / range * ch;
-    const yO = pad.t + (maxP - d.open) / range * ch;
-    const yC = pad.t + (maxP - d.close) / range * ch;
-
-    const up = d.close >= d.open;
-    ctx.strokeStyle = up ? '#e74c3c' : '#2e7d32';
-    ctx.fillStyle = up ? '#e74c3c' : '#2e7d32';
-
-    // 影线
-    ctx.beginPath(); ctx.moveTo(x, yH); ctx.lineTo(x, yL); ctx.stroke();
-    // 实体
-    const top = Math.min(yO, yC);
-    const height = Math.max(1, Math.abs(yC - yO));
-    ctx.fillRect(x - barW / 2, top, barW, height);
-  });
-
-  // 日期轴
-  ctx.fillStyle = '#ccc'; ctx.font = '16px sans-serif'; ctx.textAlign = 'center';
-  [0, Math.floor(n / 2), n - 1].forEach(i => {
-    const d = data[i];
-    if (d && d.date) {
-      const x = pad.l + gap * i + gap / 2;
-      ctx.fillText(d.date.slice(5), x, h - 4);
-    }
-  });
+  ctx.fillStyle='#bbb';ctx.font='16px monospace';ctx.textAlign='right';
+  for(let i=0;i<=4;i++){const pr=mx-rng*i/4,y=p.t+ch*i/4;ctx.fillText(pr.toFixed(2),p.l-6,y+5);ctx.strokeStyle='#f0f0f0';ctx.beginPath();ctx.moveTo(p.l,y);ctx.lineTo(w-p.r,y);ctx.stroke()}
+  // K线
+  data.forEach((d,i)=>{const x=p.l+gap*i+gap/2,yH=p.t+(mx-d.high)/rng*ch,yL=p.t+(mx-d.low)/rng*ch,yO=p.t+(mx-d.open)/rng*ch,yC=p.t+(mx-d.close)/rng*ch;const up=d.close>=d.open;ctx.strokeStyle=up?'#e74c3c':'#2e7d32';ctx.fillStyle=up?'#e74c3c':'#2e7d32';ctx.beginPath();ctx.moveTo(x,yH);ctx.lineTo(x,yL);ctx.stroke();const top=Math.min(yO,yC),ht=Math.max(1,Math.abs(yC-yO));ctx.fillRect(x-barW/2,top,barW,ht)});
+  // 日期
+  ctx.fillStyle='#ccc';ctx.font='14px sans-serif';ctx.textAlign='center';
+  [0,Math.floor(n/2),n-1].forEach(i=>{if(data[i]&&data[i].date){ctx.fillText(data[i].date.slice(5),p.l+gap*i+gap/2,h-4)}});
 }
 
-function closeKlineModal() {
-  document.getElementById('kline-modal').classList.remove('show');
-}
-
-document.getElementById('kline-modal').addEventListener('click', function(e) {
-  if (e.target === this) closeKlineModal();
-});
+function closeKline(){document.getElementById('kline-modal').classList.remove('show')}
+document.getElementById('kline-modal').addEventListener('click',function(e){if(e.target===this)closeKline()});
 
 // ── 初始化 ──
 loadIndices();
-loadETFs();
+loadSectorRanking('industry');
+loadUserSectors();
 </script>
 </body>
 </html>
