@@ -98,18 +98,19 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
 
 <script>
 let allNews = [];
+let currentFiltered = []; // 当前显示的筛选结果
 const SUMMARY_LEN = 100;
 
 function filterNews(type) {
   document.querySelectorAll('.filter-btn').forEach(b => b.classList.remove('active'));
   event.target.classList.add('active');
-  let filtered = allNews;
+  currentFiltered = allNews;
   if (type === 'important') {
-    filtered = allNews.filter(n => n.important);
+    currentFiltered = allNews.filter(n => n.important);
   } else if (type !== 'all') {
-    filtered = allNews.filter(n => n.category === type);
+    currentFiltered = allNews.filter(n => n.category === type);
   }
-  renderNews(filtered);
+  renderNews(currentFiltered);
 }
 
 function getSourceClass(source, category) {
@@ -161,7 +162,7 @@ function renderNews(news) {
 }
 
 function openDetail(idx) {
-  const item = allNews[idx];
+  const item = currentFiltered[idx];
   if (!item) return;
   document.getElementById('modal-title').textContent = item.title || '';
   const importantBadge = item.important ? '<span class="important-badge">重要</span> ' : '';
@@ -197,7 +198,8 @@ async function loadNews() {
     const data = await resp.json();
     if (data.code === 0) {
       allNews = data.data || [];
-      renderNews(allNews);
+      currentFiltered = allNews;
+      renderNews(currentFiltered);
     } else {
       document.getElementById('news-list').innerHTML = '<div class="empty">加载失败</div>';
     }
