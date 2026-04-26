@@ -78,6 +78,20 @@ def init_db():
 
     CREATE INDEX IF NOT EXISTS idx_stocks_user ON stocks(user_id);
     CREATE INDEX IF NOT EXISTS idx_trades_stock ON trades(stock_id);
+
+    -- 用户关注板块（行业+概念）
+    CREATE TABLE IF NOT EXISTS user_sectors (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        user_id INTEGER NOT NULL,
+        sector_code TEXT NOT NULL,
+        sector_name TEXT NOT NULL,
+        sector_type TEXT NOT NULL DEFAULT 'industry',
+        sort_order INTEGER DEFAULT 0,
+        created_at TIMESTAMP DEFAULT (datetime('now', 'localtime')),
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        UNIQUE(user_id, sector_code)
+    );
+    CREATE INDEX IF NOT EXISTS idx_user_sectors ON user_sectors(user_id);
     """)
     conn.commit()
     conn.close()

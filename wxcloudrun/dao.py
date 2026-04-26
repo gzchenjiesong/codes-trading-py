@@ -95,3 +95,59 @@ def create_trade(stock_id, data):
 
 def delete_trade(trade_id):
     return execute("DELETE FROM trades WHERE id = ?", (trade_id,))
+
+
+# ── User Sectors (关注板块) ──
+
+def get_user_sectors(user_id):
+    return query_all(
+        "SELECT * FROM user_sectors WHERE user_id = ? ORDER BY sort_order, created_at",
+        (user_id,),
+    )
+
+
+def add_user_sector(user_id, sector_code, sector_name, sector_type='industry'):
+    try:
+        return execute(
+            "INSERT OR IGNORE INTO user_sectors (user_id, sector_code, sector_name, sector_type) VALUES (?, ?, ?, ?)",
+            (user_id, sector_code, sector_name, sector_type),
+        )
+    except Exception as e:
+        print(f"add_user_sector error: {e}")
+        return 0
+
+
+def remove_user_sector(user_id, sector_code):
+    return execute(
+        "DELETE FROM user_sectors WHERE user_id = ? AND sector_code = ?",
+        (user_id, sector_code),
+    )
+
+
+def batch_add_user_sectors(user_id, sectors):
+    """批量添加关注板块。sectors: [{code, name, type}, ...]"""
+    conn = get_conn()
+    try:
+        for s in sectors:
+            conn.execute(
+                "INSERT OR IGNORE INTO user_sectors (user_id, sector_code, sector_name, sector_type) VALUES (?, ?, ?, ?)",
+                (user_id, s['code'], s['name'], s.get('type', 'industry')),
+            )
+        conn.commit()
+        return len(sectors)
+    finally:
+        conn.close()
+
+
+def batch_remove_user_sectors(user_id, codes):
+    """批量移除关注板块"""
+    conn = get_conn()
+    try:
+        placeholders = ','.join('?' * len(codes))
+        conn.execute(
+            f"DELETE FROM user_sectors WHERE user_id = ? AND sector_code IN ({placeholders})",
+            (user_id, *codes),
+        )
+        conn.commit()
+    finally:
+        conn.close()

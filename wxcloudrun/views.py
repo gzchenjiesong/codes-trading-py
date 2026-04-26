@@ -17,7 +17,10 @@ from wxcloudrun.services.fund_data import (
     get_realtime_quotes, get_etf_kline, DEFAULT_WATCHLIST,
 )
 from wxcloudrun.services.news_data import get_financial_news
-from wxcloudrun.services.market_data import get_market_indices
+from wxcloudrun.services.market_data import (
+    get_market_indices, get_index_kline,
+    fetch_industry_sectors, fetch_concept_sectors, get_sector_ranking,
+)
 from wxcloudrun.services.stock_data import (
     get_stock_quote, get_stock_batch_quote, get_stock_kline,
     get_technical_indicators, detect_market,
@@ -247,6 +250,94 @@ def api_market_indices():
     """大盘指数实时行情（A股+港股+美股）"""
     indices = get_market_indices()
     return make_succ_response(indices)
+
+
+@app.route('/api/market/index-kline/<code>')
+def market_index_kline(code):
+    """指数日K线（腾讯财经CDN）"""
+    market = request.args.get("market", "cn")
+    days = int(request.args.get("days", 120))
+    data = get_index_kline(code, market=market, days=days)
+    return make_succ_response(data)
+
+
+# ── 行业/概念板块 ──
+
+@app.route('/api/market/sectors')
+def api_all_sectors():
+    """全部板块列表（行业+概念）"""
+    stype = request.args.get("type", "industry")
+    if stype == "concept":
+        data = fetch_concept_sectors(limit=100)
+    else:
+        data = fetch_industry_sectors(limit=100)
+    return make_succ_response(data)
+
+
+@app.route('/api/market/sectors/ranking')
+def api_sector_ranking():
+    """板块涨跌幅排行"""
+    stype = request.args.get("type", "industry")
+    top_n = int(request.args.get("top", 10))
+    ranking = get_sector_ranking(stype, "change_pct", top_n)
+    return make_succ_response(ranking)
+
+
+# ── 用户关注板块 ──
+
+@app.route('/api/user/sectors', methods=['GET'])
+@login_required
+def list_user_sectors():
+    """获取用户关注板块列表"""
+    sectors = dao.get_user_sectors(request._user["id"])
+    # 补充实时行情
+    industry_data = {s["code"]: s for s in fetch_industry_sectors(200)}
+    concept_data = {s["code"]: s for s in fetch_concept_sectors(200)}
+    for s in sectors:
+        source = industry_data if s["sector_type"] == "industry" else concept_data
+        if s["sector_code"] in source:
+            market_info = source[s["sector_code"]]
+            s["change_pct"] = market_info.get("change_pct", 0)
+            s["change"] = market_info.get("change", 0)
+            s["turnover"] = market_info.get("turnover", 0)
+            s["up_count"] = market_info.get("up_count", 0)
+            s["down_count"] = market_info.get("down_count", 0)
+        else:
+            s["change_pct"] = 0
+            s["change"] = 0
+    return make_succ_response(sectors)
+
+
+@app.route('/api/user/sectors', methods=['POST'])
+@login_required
+def add_sectors():
+    """添加关注板块（支持批量）"""
+    body = request.get_json()
+    if isinstance(body, list):
+        # 批量添加
+        dao.batch_add_user_sectors(request._user["id"], body)
+    elif isinstance(body, dict) and 'code' in body and 'name' in body:
+        dao.add_user_sector(
+            request._user["id"], body['code'], body['name'],
+            body.get('type', 'industry'),
+        )
+    else:
+        return make_err_response("请提供 {code, name, type} 或数组")
+    return make_succ_response({})
+
+
+@app.route('/api/user/sectors', methods=['DELETE'])
+@login_required
+def remove_sectors():
+    """移除关注板块（支持批量）"""
+    body = request.get_json()
+    if isinstance(body, list):
+        dao.batch_remove_user_sectors(request._user["id"], body)
+    elif isinstance(body, dict) and 'code' in body:
+        dao.remove_user_sector(request._user["id"], body['code'])
+    else:
+        return make_err_response("请提供 {code} 或 codes 数组")
+    return make_succ_response({})
 
 
 # ── 行情总览 ──
