@@ -61,15 +61,54 @@ def get_stock_by_id(stock_id, user_id):
 
 def create_stock(user_id, data):
     return execute("""
-        INSERT INTO stocks (user_id, code, name, market, base_cash, mode,
-            sgrid_step_pct, mgrid_step_pct, lgrid_step_pct)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-    """, (user_id, data['code'], data['name'],
-          data.get('market', 'sz'), data.get('baseCash', 10000),
-          data.get('mode', 'm1'),
-          data.get('sgridStepPct', 0.05),
-          data.get('mgridStepPct', 0.05),
-          data.get('lgridStepPct', 0.05)))
+        INSERT INTO stocks (
+            user_id, code, name, market, base_cash, mode,
+            one_grid_limit, max_slump_pct, trigger_add_point,
+            trading_price_precision, min_batch_count, max_rise_pct,
+            minimum_buy_pct, clear_step_pct, bottom_buy_pct,
+            interest_year, interest_rate, interest_step, interest_trigger,
+            sgrid_step_pct, sgrid_retain_count, sgrid_add_pct,
+            mgrid_step_pct, mgrid_retain_count, mgrid_add_pct,
+            lgrid_step_pct, lgrid_retain_count, lgrid_add_pct,
+            control
+        ) VALUES (
+            ?, ?, ?, ?, ?, ?,
+            ?, ?, ?,
+            ?, ?, ?,
+            ?, ?, ?,
+            ?, ?, ?, ?,
+            ?, ?, ?,
+            ?, ?, ?,
+            ?, ?, ?
+        )
+    """, (
+        user_id,
+        data['code'], data['name'], data.get('market', 'sz'),
+        data.get('baseCash', 10000), data.get('mode', 'm1'),
+        data.get('oneGridLimit', 1.0),
+        data.get('maxSlumpPct', 0.2),
+        data.get('triggerAddPoint', 0.005),
+        data.get('tradingPricePrecision', 3),
+        data.get('minBatchCount', 100),
+        data.get('maxRisePct', 0.07),
+        data.get('minimumBuyPct', 0.1),
+        data.get('clearStepPct', 0.25),
+        data.get('bottomBuyPct', 0.2),
+        data.get('interestYear', 2025),
+        data.get('interestRate', 0.045),
+        data.get('interestStep', 40),
+        data.get('interestTrigger', 0.85),
+        data.get('sgridStepPct', 0.05),
+        data.get('sgridRetainCount', 0),
+        data.get('sgridAddPct', 0.0),
+        data.get('mgridStepPct', 0.05),
+        data.get('mgridRetainCount', 0),
+        data.get('mgridAddPct', 0.0),
+        data.get('lgridStepPct', 0.05),
+        data.get('lgridRetainCount', 0),
+        data.get('lgridAddPct', 0.0),
+        data.get('control', 'ACTIVE'),
+    ))
 
 
 def update_stock_price(stock_id, user_id, price):
@@ -87,10 +126,11 @@ def get_trades_by_stock(stock_id):
 
 def create_trade(stock_id, data):
     return execute("""
-        INSERT INTO trades (stock_id, type, date, grid_label, price, count)
-        VALUES (?, ?, ?, ?, ?, ?)
+        INSERT INTO trades (stock_id, type, date, grid_label, price, count, extra)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
     """, (stock_id, data['type'], data['date'],
-          data.get('gridLabel', ''), data['price'], data['count']))
+          data.get('gridLabel', ''), data['price'], data['count'],
+          data.get('extra', '')))
 
 
 def delete_trade(trade_id):

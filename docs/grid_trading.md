@@ -18,12 +18,20 @@
 | 字段 | 默认值 | 说明 |
 |------|--------|------|
 | base_cash | 10000 | 基础资金 |
-| one_grid_limit | 0.67 | 单网格资金上限比例 |
-| max_slump_pct | 0.2 | 最大跌幅比例 (20%) |
+| one_grid_limit | 3.0 | 单网格限制（ grids 数量上限） |
+| max_slump_pct | 0.0 | 最大回撤比例 (0%=不限制) |
+| trigger_add_point | 0.0 | 触发加点（价格触发点） |
 | min_batch_count | 100 | 最小交易单位 |
 | trading_price_precision | 3 | 价格小数精度 |
 | max_rise_pct | 0.07 | 最大涨幅比例 (7%) |
-| mode | m1 | 网格模式 |
+| minimum_buy_pct | 0.0 | 最小买入比例 |
+| clear_step_pct | 0.0 | 清仓步进比例 |
+| bottom_buy_pct | 0.0 | 底部买入比例 |
+| interest_year | 2025 | 利息年份 |
+| interest_rate | 0.0 | 利率 (%) |
+| interest_step | 40 | 利息步进 |
+| interest_trigger | 0.85 | 利息触发点 |
+| mode | m1 | 网格模式 (m1/m2/m3) |
 
 ### GridStepParams — 网格步进参数
 | 字段 | 默认值 | 说明 |
@@ -66,6 +74,99 @@
 - **收益率**: 浮盈亏 / 已投入资金
 
 ## API 端点
+
+### GET `/api/stocks/:id`
+返回标的详情 + 网格分析结果
+
+**响应示例：**
+```json
+{
+  "code": 0,
+  "data": {
+    "stock": {
+      "id": 1,
+      "code": "159869",
+      "name": "游戏ETF",
+      "market": "sz",
+      "mode": "m1",
+      "base_cash": 10000,
+      "current_price": 0.856,
+      "one_grid_limit": 3,
+      "sgrid_step_pct": 0.03,
+      "mgrid_step_pct": 0.05,
+      "lgrid_step_pct": 0.05,
+      "max_slump_pct": 0.0,
+      "trigger_add_point": 0.0,
+      "minimum_buy_pct": 0.0,
+      "clear_step_pct": 0.0,
+      "bottom_buy_pct": 0.0,
+      "interest_rate": 0.0,
+      "interest_interval": null,
+      "interest_dividend_reinvest": 0,
+      "control": "ACTIVE"
+    },
+    "gridResult": {
+      "grids": [...],
+      "holding": [...],
+      "records": [...],
+      "total_cost": 5000,
+      "total_value": 5500,
+      "total_profit": 500
+    }
+  }
+}
+```
+
+### POST `/api/stocks`
+创建新标的
+
+**请求体：**
+```json
+{
+  "code": "159869",
+  "name": "游戏ETF",
+  "market": "sz",
+  "mode": "m1",
+  "base_cash": 10000,
+  "one_grid_limit": 3,
+  "sgrid_step_pct": 0.03,
+  "mgrid_step_pct": 0.05,
+  "lgrid_step_pct": 0.05,
+  "max_slump_pct": 0.0,
+  "trigger_add_point": 0.0,
+  "minimum_buy_pct": 0.0,
+  "clear_step_pct": 0.0,
+  "bottom_buy_pct": 0.0,
+  "interest_rate": 0.0,
+  "interest_interval": null,
+  "interest_dividend_reinvest": 0
+}
+```
+
+### PUT `/api/stocks/:id/price`
+更新标的当前价格
+
+**请求体：**
+```json
+{
+  "price": 0.856
+}
+```
+
+### POST `/api/stocks/:id/trades`
+添加交易记录
+
+**请求体：**
+```json
+{
+  "type": "BUY",
+  "date": "2026-04-30",
+  "price": 0.856,
+  "count": 1000,
+  "grid_label": "sgrid1",
+  "extra": ""
+}
+```
 
 | 方法 | 路径 | 说明 |
 |------|------|------|

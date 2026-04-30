@@ -154,22 +154,43 @@ def get_stock(stock_id):
     stock_info = StockInfo(code=stock["code"], name=stock["name"], market=stock["market"],
                            status=stock["status"], price=stock["current_price"])
     base_params = BaseParams(
-        base_cash=stock["base_cash"], one_grid_limit=stock["one_grid_limit"],
-        max_slump_pct=stock["max_slump_pct"], trigger_add_point=stock["trigger_add_point"],
-        trading_price_precision=stock["trading_price_precision"],
-        min_batch_count=stock["min_batch_count"], max_rise_pct=stock["max_rise_pct"],
-        mode=stock["mode"], control=stock["control"])
+        base_cash=stock.get("base_cash", 10000.0),
+        one_grid_limit=stock.get("one_grid_limit", 1.0),
+        max_slump_pct=stock.get("max_slump_pct", 0.2),
+        trigger_add_point=stock.get("trigger_add_point", 0.005),
+        trading_price_precision=stock.get("trading_price_precision", 3),
+        min_batch_count=stock.get("min_batch_count", 100),
+        max_rise_pct=stock.get("max_rise_pct", 0.07),
+        mode=stock.get("mode", "m1"),
+        control=stock.get("control", "ACTIVE"),
+        minimum_buy_pct=stock.get("minimum_buy_pct", 0.1),
+        clear_step_pct=stock.get("clear_step_pct", 0.25),
+        bottom_buy_pct=stock.get("bottom_buy_pct", 0.2),
+        interest_year=stock.get("interest_year", 2025),
+        interest_rate=stock.get("interest_rate", 0.045),
+        interest_step=stock.get("interest_step", 40),
+        interest_trigger=stock.get("interest_trigger", 0.85),
+    )
     step_params = GridStepParams(
-        sgrid_step_pct=stock["sgrid_step_pct"],
-        sgrid_retain_count=stock["sgrid_retain_count"],
-        mgrid_step_pct=stock["mgrid_step_pct"],
-        mgrid_retain_count=stock["mgrid_retain_count"],
-        lgrid_step_pct=stock["lgrid_step_pct"],
-        lgrid_retain_count=stock["lgrid_retain_count"])
-    trade_records = [TradeRecord(type=t["type"], date=t["date"],
-                                 grid_label=t["grid_label"],
-                                 price=t["price"], count=t["count"])
-                     for t in trades_data]
+        sgrid_step_pct=stock.get("sgrid_step_pct", 0.05),
+        sgrid_retain_count=stock.get("sgrid_retain_count", 0),
+        sgrid_add_pct=stock.get("sgrid_add_pct", 0.0),
+        mgrid_step_pct=stock.get("mgrid_step_pct", 0.05),
+        mgrid_retain_count=stock.get("mgrid_retain_count", 0),
+        mgrid_add_pct=stock.get("mgrid_add_pct", 0.0),
+        lgrid_step_pct=stock.get("lgrid_step_pct", 0.05),
+        lgrid_retain_count=stock.get("lgrid_retain_count", 0),
+        lgrid_add_pct=stock.get("lgrid_add_pct", 0.0),
+    )
+    trade_records = [
+        TradeRecord(
+            type=t["type"], date=t["date"],
+            grid_label=t.get("grid_label", ""),
+            price=t["price"], count=t["count"],
+            extra=t.get("extra", ""),
+        )
+        for t in trades_data
+    ]
 
     result = run_grid_analysis(stock_info, base_params, step_params,
                                stock["current_price"], trade_records)

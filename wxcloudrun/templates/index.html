@@ -129,14 +129,48 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
       <div class="form-group"><label>市场</label><select id="stockMarket"><option value="sz">深市</option><option value="sh">沪市</option></select></div>
       <div class="form-group"><label>模式</label><select id="stockMode"><option value="m1">模式1</option><option value="m2">模式2</option><option value="m3">模式3</option></select></div>
     </div>
-    <div class="form-row">
-      <div class="form-group"><label>基础资金</label><input type="number" id="stockBaseCash" value="10000"></div>
-      <div class="form-group"><label>小网步进%</label><input type="number" id="stockSgridStep" value="3" step="0.5"></div>
-    </div>
-    <div class="form-row">
-      <div class="form-group"><label>中网步进%</label><input type="number" id="stockMgridStep" value="5" step="0.5"></div>
-      <div class="form-group"><label>大网步进%</label><input type="number" id="stockLgridStep" value="5" step="0.5"></div>
-    </div>
+    <details style="margin-bottom:12px">
+      <summary style="cursor:pointer;font-size:13px;color:#07c160;margin-bottom:8px">高级参数（可选）</summary>
+      <div class="form-row">
+        <div class="form-group"><label>基础资金</label><input type="number" id="stockBaseCash" value="10000"></div>
+        <div class="form-group"><label>单网格限制</label><input type="number" id="stockOneGridLimit" value="3" step="0.1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>小网步进%</label><input type="number" id="stockSgridStep" value="3" step="0.5"></div>
+        <div class="form-group"><label>中网步进%</label><input type="number" id="stockMgridStep" value="5" step="0.5"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>大网步进%</label><input type="number" id="stockLgridStep" value="5" step="0.5"></div>
+        <div class="form-group"><label>最大回撤%</label><input type="number" id="stockMaxSlumpPct" value="0" step="0.1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>触发加点</label><input type="number" id="stockTriggerAddPoint" value="0" step="0.1"></div>
+        <div class="form-group"><label>最小买入%</label><input type="number" id="stockMinimumBuyPct" value="0" step="0.1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>清仓步进%</label><input type="number" id="stockClearStepPct" value="0" step="0.1"></div>
+        <div class="form-group"><label>底部买入%</label><input type="number" id="stockBottomBuyPct" value="0" step="0.1"></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>利率%</label><input type="number" id="stockInterestRate" value="0" step="0.1"></div>
+        <div class="form-group">
+          <label>利息间隔</label>
+          <select id="stockInterestInterval">
+            <option value="">无</option>
+            <option value="monthly">每月</option>
+            <option value="quarterly">每季度</option>
+            <option value="yearly">每年</option>
+          </select>
+        </div>
+      </div>
+      <div class="form-group">
+        <label>分红再投资</label>
+        <select id="stockInterestDividendReinvest">
+          <option value="0">否</option>
+          <option value="1">是</option>
+        </select>
+      </div>
+    </details>
     <div class="btn-row">
       <button class="btn-cancel" onclick="closeModal('addStockModal')">取消</button>
       <button class="btn-submit" onclick="submitStock()">确认添加</button>
@@ -211,7 +245,7 @@ function showUserMenu(){
 
 function switchTab(tab){
   document.querySelectorAll('.tab-bar button').forEach(b=>b.classList.remove('active'));
-  if(tab==='stocks'){document.querySelectorAll('.tab-bar button')[0].classList.add('active');loadStockList()}
+  if(tab==='stocks'){document.querySelectorAll('.tab-bar button')[2].classList.add('active');loadStockList()}
 }
 
 // ── 标的列表 ──
@@ -331,10 +365,19 @@ async function submitStock(){
     name:document.getElementById('stockName').value.trim(),
     market:document.getElementById('stockMarket').value,
     mode:document.getElementById('stockMode').value,
-    baseCash:parseFloat(document.getElementById('stockBaseCash').value),
-    sgridStepPct:parseFloat(document.getElementById('stockSgridStep').value)/100,
-    mgridStepPct:parseFloat(document.getElementById('stockMgridStep').value)/100,
-    lgridStepPct:parseFloat(document.getElementById('stockLgridStep').value)/100,
+    base_cash:parseFloat(document.getElementById('stockBaseCash').value)||10000,
+    one_grid_limit:parseFloat(document.getElementById('stockOneGridLimit').value)||3,
+    sgrid_step_pct:parseFloat(document.getElementById('stockSgridStep').value)/100,
+    mgrid_step_pct:parseFloat(document.getElementById('stockMgridStep').value)/100,
+    lgrid_step_pct:parseFloat(document.getElementById('stockLgridStep').value)/100,
+    max_slump_pct:parseFloat(document.getElementById('stockMaxSlumpPct').value)/100||0,
+    trigger_add_point:parseFloat(document.getElementById('stockTriggerAddPoint').value)||0,
+    minimum_buy_pct:parseFloat(document.getElementById('stockMinimumBuyPct').value)/100||0,
+    clear_step_pct:parseFloat(document.getElementById('stockClearStepPct').value)/100||0,
+    bottom_buy_pct:parseFloat(document.getElementById('stockBottomBuyPct').value)/100||0,
+    interest_rate:parseFloat(document.getElementById('stockInterestRate').value)/100||0,
+    interest_interval:document.getElementById('stockInterestInterval').value||null,
+    interest_dividend_reinvest:parseInt(document.getElementById('stockInterestDividendReinvest').value)||0,
   };
   if(!d.code||!d.name){toast('请填写代码和名称');return}
   const r=await api('/api/stocks',{method:'POST',body:d});
@@ -353,7 +396,7 @@ async function submitTrade(){
     date:document.getElementById('tradeDate').value,
     price:parseFloat(document.getElementById('tradePrice').value),
     count:parseInt(document.getElementById('tradeCount').value),
-    gridLabel:document.getElementById('tradeGridLabel').value.trim()
+    grid_label:document.getElementById('tradeGridLabel').value.trim()
   };
   if(!d.date||!d.price||!d.count){toast('请填写完整信息');return}
   const r=await api('/api/stocks/'+currentStockId+'/trades',{method:'POST',body:d});
