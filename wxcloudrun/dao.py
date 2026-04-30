@@ -60,55 +60,74 @@ def get_stock_by_id(stock_id, user_id):
 
 
 def create_stock(user_id, data):
-    return execute("""
-        INSERT INTO stocks (
-            user_id, code, name, market, base_cash, mode,
-            one_grid_limit, max_slump_pct, trigger_add_point,
-            trading_price_precision, min_batch_count, max_rise_pct,
-            minimum_buy_pct, clear_step_pct, bottom_buy_pct,
-            interest_year, interest_rate, interest_step, interest_trigger,
-            sgrid_step_pct, sgrid_retain_count, sgrid_add_pct,
-            mgrid_step_pct, mgrid_retain_count, mgrid_add_pct,
-            lgrid_step_pct, lgrid_retain_count, lgrid_add_pct,
-            control
-        ) VALUES (
-            ?, ?, ?, ?, ?, ?,
-            ?, ?, ?,
-            ?, ?, ?,
-            ?, ?, ?,
-            ?, ?, ?, ?,
-            ?, ?, ?,
-            ?, ?, ?,
-            ?, ?, ?
-        )
-    """, (
-        user_id,
-        data['code'], data['name'], data.get('market', 'sz'),
-        data.get('baseCash', 10000), data.get('mode', 'm1'),
-        data.get('oneGridLimit', 1.0),
-        data.get('maxSlumpPct', 0.2),
-        data.get('triggerAddPoint', 0.005),
-        data.get('tradingPricePrecision', 3),
-        data.get('minBatchCount', 100),
-        data.get('maxRisePct', 0.07),
-        data.get('minimumBuyPct', 0.1),
-        data.get('clearStepPct', 0.25),
-        data.get('bottomBuyPct', 0.2),
-        data.get('interestYear', 2025),
-        data.get('interestRate', 0.045),
-        data.get('interestStep', 40),
-        data.get('interestTrigger', 0.85),
-        data.get('sgridStepPct', 0.05),
-        data.get('sgridRetainCount', 0),
-        data.get('sgridAddPct', 0.0),
-        data.get('mgridStepPct', 0.05),
-        data.get('mgridRetainCount', 0),
-        data.get('mgridAddPct', 0.0),
-        data.get('lgridStepPct', 0.05),
-        data.get('lgridRetainCount', 0),
-        data.get('lgridAddPct', 0.0),
-        data.get('control', 'ACTIVE'),
-    ))
+    """创建标的，自动处理新字段"""
+    # 列名和默认值
+    columns = [
+        ('user_id', None),
+        ('code', None),
+        ('name', None),
+        ('market', 'sz'),
+        ('base_cash', 10000),
+        ('mode', 'm1'),
+        ('one_grid_limit', 3.0),
+        ('max_slump_pct', 0.0),
+        ('trigger_add_point', 0.0),
+        ('trading_price_precision', 3),
+        ('min_batch_count', 100),
+        ('max_rise_pct', 0.07),
+        ('minimum_buy_pct', 0.0),
+        ('clear_step_pct', 0.0),
+        ('bottom_buy_pct', 0.0),
+        ('interest_year', 2025),
+        ('interest_rate', 0.0),
+        ('interest_step', 40),
+        ('interest_trigger', 0.85),
+        ('sgrid_step_pct', 0.05),
+        ('sgrid_retain_count', 0),
+        ('sgrid_add_pct', 0.0),
+        ('mgrid_step_pct', 0.05),
+        ('mgrid_retain_count', 0),
+        ('mgrid_add_pct', 0.0),
+        ('lgrid_step_pct', 0.05),
+        ('lgrid_retain_count', 0),
+        ('lgrid_add_pct', 0.0),
+        ('control', 'ACTIVE'),
+    ]
+    
+    # 构建 SQL
+    col_names = []
+    placeholders = []
+    values = []
+    
+    for col_name, default_val in columns:
+        col_names.append(col_name)
+        placeholders.append('?')
+        
+        # 获取值：优先从 data 中取，否则用默认值
+        if col_name == 'user_id':
+            values.append(user_id)
+        elif col_name in ['code', 'name']:
+            values.append(data[col_name])  # 必填字段
+        else:
+            # 转换驼峰命名为下划线
+            camel_key = ''.join(['_' + c.lower() if c.isupper() else c for c in col_name]).lstrip('_')
+            # 尝试多种可能的 key 格式
+            possible_keys = [
+                col_name,
+                camel_key,
+                col_name.replace('_', ''),  # ongridlimit
+            ]
+            val = None
+            for key in possible_keys:
+                if key in data:
+                    val = data[key]
+                    break
+            if val is None:
+                val = default_val
+            values.append(val)
+    
+    sql = f"INSERT INTO stocks ({', '.join(col_names)}) VALUES ({', '.join(placeholders)})"
+    return execute(sql, values)
 
 
 def update_stock_price(stock_id, user_id, price):
@@ -136,6 +155,13 @@ def create_trade(stock_id, data):
 def delete_trade(trade_id):
     return execute("DELETE FROM trades WHERE id = ?", (trade_id,))
 
+def get_grid_defs(stock_id):
+    """读取某标的的网格定义（SGRID / MGRID / LGRID）"""
+    return query_all(
+        "SELECT * FROM grid_defs WHERE stock_id = ? ORDER BY grid_type, level",
+        (stock_id,),
+    )
+
 
 # ── User Sectors (关注板块) ──
 
@@ -149,45 +175,28 @@ def get_user_sectors(user_id):
 def add_user_sector(user_id, sector_code, sector_name, sector_type='industry'):
     try:
         return execute(
-            "INSERT OR IGNORE INTO user_sectors (user_id, sector_code, sector_name, sector_type) VALUES (?, ?, ?, ?)",
+            "INSERT INTO user_sectors (user_id, sector_code, sector_name, sector_type) "
+            "VALUES (?, ?, ?, ?)",
             (user_id, sector_code, sector_name, sector_type),
         )
-    except Exception as e:
-        print(f"add_user_sector error: {e}")
-        return 0
-
-
-def remove_user_sector(user_id, sector_code):
-    return execute(
-        "DELETE FROM user_sectors WHERE user_id = ? AND sector_code = ?",
-        (user_id, sector_code),
-    )
+    except Exception:
+        # 已存在
+        return None
 
 
 def batch_add_user_sectors(user_id, sectors):
-    """批量添加关注板块。sectors: [{code, name, type}, ...]"""
-    conn = get_conn()
-    try:
-        for s in sectors:
-            conn.execute(
-                "INSERT OR IGNORE INTO user_sectors (user_id, sector_code, sector_name, sector_type) VALUES (?, ?, ?, ?)",
-                (user_id, s['code'], s['name'], s.get('type', 'industry')),
-            )
-        conn.commit()
-        return len(sectors)
-    finally:
-        conn.close()
-
-
-def batch_remove_user_sectors(user_id, codes):
-    """批量移除关注板块"""
-    conn = get_conn()
-    try:
-        placeholders = ','.join('?' * len(codes))
-        conn.execute(
-            f"DELETE FROM user_sectors WHERE user_id = ? AND sector_code IN ({placeholders})",
-            (user_id, *codes),
+    """批量添加关注板块"""
+    for s in sectors:
+        add_user_sector(
+            user_id,
+            s['sector_code'],
+            s['sector_name'],
+            s.get('sector_type', 'industry')
         )
-        conn.commit()
-    finally:
-        conn.close()
+
+
+def delete_user_sector(sector_id, user_id):
+    return execute(
+        "DELETE FROM user_sectors WHERE id = ? AND user_id = ?",
+        (sector_id, user_id),
+    )

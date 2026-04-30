@@ -11,7 +11,7 @@ from run import app
 import config
 from wxcloudrun import dao
 from wxcloudrun.services.grid import (
-    StockInfo, BaseParams, GridStepParams, TradeRecord, run_grid_analysis
+    StockInfo, BaseParams, GridStepParams, run_grid_analysis
 )
 from wxcloudrun.services.fund_data import (
     get_realtime_quotes, get_etf_kline, DEFAULT_WATCHLIST,
@@ -152,7 +152,7 @@ def get_stock(stock_id):
     trades_data = dao.get_trades_by_stock(stock_id)
 
     stock_info = StockInfo(code=stock["code"], name=stock["name"], market=stock["market"],
-                           status=stock["status"], price=stock["current_price"])
+                           price=stock["current_price"])
     base_params = BaseParams(
         base_cash=stock.get("base_cash", 10000.0),
         one_grid_limit=stock.get("one_grid_limit", 1.0),
@@ -183,17 +183,24 @@ def get_stock(stock_id):
         lgrid_add_pct=stock.get("lgrid_add_pct", 0.0),
     )
     trade_records = [
-        TradeRecord(
-            type=t["type"], date=t["date"],
-            grid_label=t.get("grid_label", ""),
-            price=t["price"], count=t["count"],
-            extra=t.get("extra", ""),
-        )
+        {
+            "type": t["type"],
+            "date": t["date"],
+            "price": t["price"],
+            "count": t["count"],
+            "grid_label": t.get("grid_label", ""),
+            "extra": t.get("extra", ""),
+        }
         for t in trades_data
     ]
 
-    result = run_grid_analysis(stock_info, base_params, step_params,
-                               stock["current_price"], trade_records)
+    # M3 模式才需要读取 grid_defs
+    grid_defs = dao.get_grid_defs(stock_id) if base_params.mode == 'm3' else None
+
+    result = run_grid_analysis(
+        stock_info, base_params, step_params,
+        stock["current_price"], trade_records, grid_defs,
+    )
     return make_succ_response({"stock": stock, "gridResult": result})
 
 

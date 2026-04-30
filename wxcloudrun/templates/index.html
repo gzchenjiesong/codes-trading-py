@@ -202,8 +202,12 @@ body{font-family:-apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei
 let currentUser=null,currentStockId=null;
 
 async function api(path,opts={}){
-  const r=await fetch(path,{credentials:'include',headers:{'Content-Type':'application/json'},...opts,body:opts.body?JSON.stringify(opts.body):undefined});
-  return r.json();
+  try{
+    const r=await fetch(path,{credentials:'include',headers:{'Content-Type':'application/json'},...opts,
+      body:opts.body?JSON.stringify(opts.body):undefined});
+    if(!r.ok){const t=await r.text();console.error('API',path,r.status,t.slice(0,200));return {code:-1,errorMsg:'HTTP '+r.status}}
+    return await r.json();
+  }catch(e){console.error('API',path,e);return {code:-1,errorMsg:e.message}}
 }
 
 function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2000)}
@@ -275,8 +279,8 @@ async function loadStockDetail(id){
   document.getElementById('app').innerHTML='<div class="empty"><div class="icon">⏳</div><p>加载中...</p></div>';
 
   const r=await api('/api/stocks/'+id);
-  if(r.code!==0){toast(r.errorMsg);return}
-
+  if(r.code!==0){toast(r.errorMsg||'请求失败');return}
+  if(!r.data||!r.data.gridResult){toast('数据格式错误');return}
   const {stock,gridResult}=r.data;
   const {grids,holding,records}=gridResult;
   const tradeRecords=records||[];
